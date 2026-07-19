@@ -1,0 +1,33 @@
+Policy EDR-01: Real-Time Protection
+All endpoints classified as in-scope must run EDR agents with real-time
+protection enabled at all times. Real-time protection must not be
+disabled for troubleshooting for more than 4 hours without a documented
+exception approved by the security team.
+
+Policy EDR-02: Agent Check-In Frequency
+EDR agents must check in with the management console at least once every
+24 hours. Endpoints that miss two consecutive check-in windows must be
+flagged for investigation and, if unresponsive, isolated from the network.
+
+Policy AV-01: Signature Freshness
+Antivirus signature databases must be updated within 7 days of vendor
+release. Endpoints exceeding this threshold are considered non-compliant
+and must be remediated within one business day of detection.
+
+Policy AV-02: Full Scan Cadence
+A full disk scan must be completed on every endpoint at least once every
+30 days. Endpoints overdue for a scan should have one scheduled during
+the next available maintenance window.
+
+Policy AV-03: Tamper Protection
+Tamper protection must remain enabled on all endpoints running the
+managed antivirus agent. Disabling tamper protection outside of an
+approved maintenance exception is treated as a critical policy violation.
+
+Policy EDR-03: Sensor Health Status
+An EDR sensor reporting an unhealthy status must be investigated within
+one business day. Unhealthy status typically indicates the sensor is
+running but not functioning correctly (e.g. driver failure, corrupted
+configuration) and does not provide the protection assumed by an
+"installed" status alone.
+
