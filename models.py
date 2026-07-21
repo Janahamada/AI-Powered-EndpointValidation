@@ -32,6 +32,25 @@ class ExtractionResult(BaseModel):
             return None
         return v
 
+    @field_validator("intent", mode="before")
+    @classmethod
+    def coerce_intent(cls, v):
+        # mode="before" runs before pydantic's own Literal type-check, so
+        # this catches None / missing / anything outside the three allowed
+        # values and falls back to "unknown" instead of raising. An LLM
+        # returning null or an off-menu string here should degrade to a
+        # clarification prompt, not crash the request.
+        if v not in ("existence_check", "compliance_check", "unknown"):
+            return "unknown"
+        return v
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def coerce_confidence(cls, v):
+        if v not in ("high", "low"):
+            return "low"
+        return v
+
 
 class Asset(BaseModel):
     hostname: str

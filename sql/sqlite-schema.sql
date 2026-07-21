@@ -1,7 +1,7 @@
--- SQLite version , for local dev/testing.
+-- SQLite version of sql/schema.sql, for local dev/testing.
 -- Run with: sqlite3 endpoint_security.db < sql/schema_sqlite.sql
 --
--- hostname is the natural
+-- Same design notes as the SQL Server version: hostname is the natural
 -- key everywhere, and there's no FK from av_controls/edr_controls to
 -- assets on purpose — evidence for a hostname not yet in the inventory
 -- is a real finding, not an import error.
@@ -44,6 +44,8 @@ CREATE TABLE edr_controls (
     loaded_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP VIEW IF EXISTS vw_inventory_drift;
+
 CREATE VIEW vw_inventory_drift AS
 SELECT hostname, 'evidence_without_inventory' AS drift_type, 'av_controls' AS source
 FROM av_controls WHERE hostname NOT IN (SELECT hostname FROM assets)
@@ -56,3 +58,18 @@ FROM assets WHERE hostname NOT IN (SELECT hostname FROM av_controls)
 UNION
 SELECT hostname, 'inventory_without_edr_evidence', NULL
 FROM assets WHERE hostname NOT IN (SELECT hostname FROM edr_controls);
+
+-- Blueprint rules, editable directly in the DB (no code changes needed
+-- to add/adjust a rule). `expected` is stored as JSON text so bool/int/str
+-- values round-trip with their real type instead of collapsing to strings —
+-- e.g. "true" (not "True"), 7, "\"Healthy\"".
+DROP TABLE IF EXISTS blueprint_rules;
+
+CREATE TABLE blueprint_rules (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    field          TEXT NOT NULL UNIQUE,
+    operator       TEXT NOT NULL,   -- 'eq' | 'lte' | 'gte'
+    expected       TEXT NOT NULL,   -- JSON-encoded value
+    severity       TEXT NOT NULL,   -- 'critical' | 'high' | 'medium' | 'low'
+    description    TEXT NOT NULL
+);

@@ -1,42 +1,36 @@
 """
-Compliance blueprint, expressed against the real AV/EDR evidence fields.
-Edit this list when your standard changes — no code changes needed
-elsewhere.
+get_blueprint() keeps the exact same signature and return type
+(list[BlueprintRule]) as before, so compliance/comparator.py and
+everything downstream is untouched.
 """
 
+import json
+import os
+import sys
+
+from sqlalchemy import create_engine, text
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DATABASE_URL
 from models import BlueprintRule
 
-BLUEPRINT: list[BlueprintRule] = [
-    BlueprintRule(
-        field="av_installed", operator="eq", expected=True,
-        severity="critical", description="Antivirus must be installed."
-    ),
-    BlueprintRule(
-        field="av_realtime_protection", operator="eq", expected=True,
-        severity="critical", description="AV real-time protection must be enabled."
-    ),
-    BlueprintRule(
-        field="av_tamper_protection", operator="eq", expected=True,
-        severity="high", description="AV tamper protection must be enabled."
-    ),
-    BlueprintRule(
-        field="av_signature_age_days", operator="lte", expected=7,
-        severity="high", description="AV signatures must be updated within 7 days."
-    ),
-    BlueprintRule(
-        field="edr_sensor_installed", operator="eq", expected=True,
-        severity="critical", description="EDR sensor must be installed."
-    ),
-    BlueprintRule(
-        field="edr_protection_status", operator="eq", expected="Healthy",
-        severity="critical", description="EDR sensor must report a healthy protection status."
-    ),
-    BlueprintRule(
-        field="edr_last_checkin_hours", operator="lte", expected=24,
-        severity="medium", description="EDR agent must check in at least every 24 hours."
-    ),
-]
+_engine = create_engine(DATABASE_URL)
 
 
 def get_blueprint() -> list[BlueprintRule]:
-    return BLUEPRINT
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT field, operator, expected, severity, description "
+                 "FROM blueprint_rules ORDER BY id")
+        ).mappings().fetchall()
+
+    return [
+        BlueprintRule(
+            field=row["field"],
+            operator=row["operator"],
+            expected=json.loads(row["expected"]),  # restores bool/int/str type
+            severity=row["severity"],
+            description=row["description"],
+        )
+        for row in rows
+    ]
