@@ -6,7 +6,7 @@ or thresholds doesn't require touching business logic.
 # --- Ollama ---
 OLLAMA_HOST = "http://localhost:11434"
 
-EXTRACTION_MODEL = "smollm2:135m"
+EXTRACTION_MODEL = "smollm2:360m"
 RECOMMENDATION_MODEL = "smollm2:1.7b"
 
 # --- Database ---

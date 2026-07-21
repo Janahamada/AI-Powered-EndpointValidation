@@ -16,7 +16,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DATABASE_URL
 
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "sql", "schema_sqlite.sql")
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "sql", "sqlite-schema.sql")
 
 
 def main():
