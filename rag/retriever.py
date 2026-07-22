@@ -8,13 +8,14 @@ run one (pgvector, Qdrant, etc.); only this file would need to change.
 import os
 import sys
 import glob
+from pathlib import Path
 
 import chromadb
 import requests
 from chromadb import Documents, EmbeddingFunction, Embeddings
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CHROMA_PATH, CHROMA_COLLECTION, RAG_TOP_K, EMBEDDING_MODEL, OLLAMA_HOST
+from config import CHROMA_PATH, COLLECTIONS, POLICIES_ROOT, RAG_TOP_K, EMBEDDING_MODEL, OLLAMA_HOST
 
 
 class OllamaEmbeddingFunction(EmbeddingFunction):
@@ -38,29 +39,42 @@ class OllamaEmbeddingFunction(EmbeddingFunction):
         return embeddings
 
 
-def _get_collection():
+def _get_collection(collection_key: str):
     client = chromadb.PersistentClient(path=CHROMA_PATH)
     return client.get_or_create_collection(
-        CHROMA_COLLECTION, embedding_function=OllamaEmbeddingFunction()
+        name=COLLECTIONS[collection_key],
+        embedding_function=OllamaEmbeddingFunction(),
     )
 
 
-def ingest_policies(policies_dir: str):
+def _get_standards_collection():
+    return _get_collection("standards")
+
+
+def _get_master_policies_collection():
+    return _get_collection("master_policies")
+
+
+def _read_text_file(filepath: str) -> str:
+    try:
+        return Path(filepath).read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return Path(filepath).read_text(encoding="cp1252", errors="replace")
+
+
+def ingest_policies(policies_dir: str, collection_key: str = "standards"):
     """
     Chunk and load every .txt/.md file in policies_dir into the vector
     store. Call this once at setup and again whenever policies change —
     it's idempotent (re-adding the same id overwrites).
     """
-    collection = _get_collection()
+    collection = _get_collection(collection_key)
     files = glob.glob(os.path.join(policies_dir, "*.txt")) + \
         glob.glob(os.path.join(policies_dir, "*.md"))
 
     for filepath in files:
-        with open(filepath, "r") as f:
-            text = f.read()
+        text = _read_text_file(filepath)
 
-        # Naive paragraph-level chunking — replace with a proper chunker
-        # (e.g. token-based, 300-500 tokens with overlap) for real policy docs.
         chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
         fname = os.path.basename(filepath)
 
@@ -70,12 +84,12 @@ def ingest_policies(policies_dir: str):
             metadatas=[{"source": fname} for _ in chunks],
         )
 
-    print(f"Ingested {len(files)} policy file(s) into '{CHROMA_COLLECTION}'.")
+    print(f"Ingested {len(files)} policy file(s) into '{COLLECTIONS[collection_key]}'.")
 
 
-def retrieve_policy_context(query: str, top_k: int = RAG_TOP_K) -> list[dict]:
+def retrieve_policy_context(query: str, collection_key: str = "standards", top_k: int = RAG_TOP_K) -> list[dict]:
     """Returns a list of {text, source} dicts for the top-k matching chunks."""
-    collection = _get_collection()
+    collection = _get_collection(collection_key)
     if collection.count() == 0:
         return []
 
@@ -90,4 +104,6 @@ def retrieve_policy_context(query: str, top_k: int = RAG_TOP_K) -> list[dict]:
 
 
 if __name__ == "__main__":
-    ingest_policies(os.path.join(os.path.dirname(__file__), "..", "policies"))
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ingest_policies(os.path.join(repo_root, POLICIES_ROOT, "standards"), collection_key="standards")
+    ingest_policies(os.path.join(repo_root, POLICIES_ROOT, "master_policies"), collection_key="master_policies")

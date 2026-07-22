@@ -1,14 +1,37 @@
 """
-Orchestrator: the only place that knows about the full flow. Everything
-else (extraction, DB, comparator, RAG, recommendations) is a plain
-function this file calls in order.
+Orchestrator: the only place that knows about the full flow.
+
+- existence_check: DB existence/control-presence check (unchanged), PLUS
+  now a RAG + LLM call against the 'standards' (CIS) collection if any
+  control is missing entirely — scoped to "does it exist," not compliance.
+- compliance_check: unchanged behavior, RAG + LLM call scoped to the
+  'master_policies' collection.
 """
 
+from models import Finding
 from db.database import get_asset_by_ip, get_controls_by_hostname
 from db.blueprint import get_blueprint
 from compliance.comparator import compare_controls_to_blueprint
 from llm.extraction import extract_ip_and_intent
-from llm.recommendation import generate_recommendations
+from llm.recommendation import generate_compliance_recommendations, generate_existence_recommendations
+
+
+def _missing_control_findings(controls) -> list[Finding]:
+    """Existence-check is only about presence/absence — not configuration —
+    so this only ever produces at most two findings (AV, EDR), independent
+    of the full blueprint used by the compliance branch."""
+    findings = []
+    if not controls.av_installed:
+        findings.append(Finding(
+            field="av_installed", expected=True, actual=False,
+            severity="critical", description="Antivirus is not installed on this asset.",
+        ))
+    if not controls.edr_sensor_installed:
+        findings.append(Finding(
+            field="edr_sensor_installed", expected=True, actual=False,
+            severity="critical", description="EDR sensor is not installed on this asset.",
+        ))
+    return findings
 
 
 def handle_user_message(user_prompt: str) -> dict:
@@ -50,7 +73,9 @@ def handle_user_message(user_prompt: str) -> dict:
 
     # --- Branch A: existence + control-presence check ---
     if extraction.intent == "existence_check":
-        return {
+        missing = _missing_control_findings(controls)
+
+        response = {
             "status": "ok",
             "use_case": "existence_check",
             "ip": extraction.ip,
@@ -62,6 +87,14 @@ def handle_user_message(user_prompt: str) -> dict:
                 "edr_sensor_installed": controls.edr_sensor_installed,
             },
         }
+
+        # Only spend the RAG + LLM call if a control is actually missing.
+        if missing:
+            response["recommendations"] = generate_existence_recommendations(asset.hostname, missing)
+        else:
+            response["recommendations"] = None
+
+        return response
 
     # --- Branch B: compliance check ---
     # Step 3: deterministic diff against blueprint (no LLM)
@@ -79,7 +112,7 @@ def handle_user_message(user_prompt: str) -> dict:
     # Step 4: only spend the RAG + second LLM call if there's actually
     # something to recommend against.
     if not compliance_result.compliant:
-        response["recommendations"] = generate_recommendations(compliance_result)
+        response["recommendations"] = generate_compliance_recommendations(compliance_result)
     else:
         response["recommendations"] = None
 
