@@ -71,12 +71,16 @@ def get_controls_by_hostname(hostname: str) -> Optional[ControlRecord]:
     return ControlRecord(
         hostname=hostname,
         av_installed=bool(av["installed"]) if av else False,
+        av_version=av["version"] if av else None,
         av_realtime_protection=bool(av["realtime_protection"]) if av else None,
         av_tamper_protection=bool(av["tamper_protection"]) if av else None,
+        av_policy=av["policy"] if av else None,
         av_signature_age_days=_days_since(_parse_dt(av["last_update"])) if av else None,
         edr_sensor_installed=bool(edr["sensor_installed"]) if edr else False,
+        edr_sensor_version=edr["sensor_version"] if edr else None,
         edr_protection_status=edr["protection_status"] if edr else None,
         edr_isolation_status=edr["isolation_status"] if edr else None,
+        edr_policy=edr["policy"] if edr else None,
         edr_last_checkin_hours=_hours_since(_parse_dt(edr["last_checkin"])) if edr else None,
         edr_detection_count=edr["detection_count"] if edr else 0,
     )
