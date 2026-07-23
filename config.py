@@ -17,13 +17,24 @@ RECOMMENDATION_MODEL = "smollm2:1.7b"
 DATABASE_URL = "sqlite:///endpoint_security.db"
 
 # --- RAG ---
+POLICIES_ROOT = "policies"
 CHROMA_PATH = "chroma_store"
-CHROMA_COLLECTION = "security_policies"
 RAG_TOP_K = 3
 # Local embedding model served by Ollama — keeps RAG fully offline instead
 # of relying on Chroma's default embedding function, which downloads a
 # model from the internet on first use.
 EMBEDDING_MODEL = "nomic-embed-text"
+ 
+# Two isolated collections, one per policies subfolder. Kept as separate
+# Chroma collections (not one collection with a metadata filter) so a
+# query targeting one can never structurally return chunks from the
+# other, regardless of filter logic.
+#   master_policies -> used ONLY by the compliance-check branch
+#   standards       -> used ONLY by the existence-check branch (CIS controls)
+COLLECTIONS = {
+    "master_policies": "master_policies",
+    "standards": "standards",
+}
 
 # --- Compliance ---
 # Severity ordering, used for sorting findings before they go to the LLM
