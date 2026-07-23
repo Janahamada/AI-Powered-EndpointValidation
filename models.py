@@ -67,13 +67,17 @@ class ControlRecord(BaseModel):
     hostname: str
 
     av_installed: bool
+    av_version: Optional[str] = None
     av_realtime_protection: Optional[bool] = None
     av_tamper_protection: Optional[bool] = None
+    av_policy: Optional[str] = None
     av_signature_age_days: Optional[int] = None  # None if AV not installed / no data
 
     edr_sensor_installed: bool
+    edr_sensor_version: Optional[str] = None
     edr_protection_status: Optional[str] = None  # "Healthy" | "Unhealthy"
     edr_isolation_status: Optional[str] = None
+    edr_policy: Optional[str] = None
     edr_last_checkin_hours: Optional[int] = None
     edr_detection_count: int = 0
 

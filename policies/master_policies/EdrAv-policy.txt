@@ -24,6 +24,19 @@ Tamper protection must remain enabled on all endpoints running the
 managed antivirus agent. Disabling tamper protection outside of an
 approved maintenance exception is treated as a critical policy violation.
 
+Policy AV-04: Agent Version
+All endpoints running the managed antivirus agent must use an approved
+vendor-supported version. Unsupported, end-of-life, or unapproved
+versions are considered non-compliant and must be upgraded or remediated
+within 5 business days of detection.
+
+Policy AV-05: Agent Policy
+All endpoints running the managed antivirus agent must be configured
+with the approved standard workstation policy. Any deviation from the
+standard policy that weakens protection, disables required controls, or
+prevents enforcement must be investigated and remediated within one
+business day.
+
 Policy EDR-03: Sensor Health Status
 An EDR sensor reporting an unhealthy status must be investigated within
 one business day. Unhealthy status typically indicates the sensor is
@@ -31,3 +44,13 @@ running but not functioning correctly (e.g. driver failure, corrupted
 configuration) and does not provide the protection assumed by an
 "installed" status alone.
 
+Policy EDR-04: Sensor Version
+All in-scope endpoints must run an approved EDR sensor version that is
+within the vendor support lifecycle. Unsupported or outdated sensor
+versions must be remediated within 5 business days of detection.
+
+Policy EDR-05: Sensor Configuration Baseline
+EDR sensors must be deployed with the approved security baseline
+configuration. Any unauthorized or non-standard deviation that weakens
+protection, disables telemetry, or prevents proper detection must be
+investigated and corrected within one business day.
