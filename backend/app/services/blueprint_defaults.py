@@ -36,15 +36,15 @@ DEFAULT_RULES: list[dict] = [
          severity="medium", description="EDR policy must be set to 'EDR_Production_v2'."),
     dict(control_type="edr", field="edr_last_checkin_hours", operator="lte", expected=24,
          severity="medium", description="EDR agent must check in at least every 24 hours."),
-    # --- Firewall (golden image: all profiles Enabled, default inbound Block) ---
-    dict(control_type="firewall", field="fw_domain_profile", operator="eq", expected="Enabled",
-         severity="high", description="Firewall Domain profile must be enabled."),
-    dict(control_type="firewall", field="fw_private_profile", operator="eq", expected="Enabled",
-         severity="high", description="Firewall Private profile must be enabled."),
-    dict(control_type="firewall", field="fw_public_profile", operator="eq", expected="Enabled",
-         severity="high", description="Firewall Public profile must be enabled."),
-    dict(control_type="firewall", field="fw_default_inbound_action", operator="eq", expected="Block",
-         severity="high", description="Firewall default inbound action must be 'Block'."),
+#     # --- Firewall (golden image: all profiles Enabled, default inbound Block) ---
+#     dict(control_type="firewall", field="fw_domain_profile", operator="eq", expected="Enabled",
+#          severity="high", description="Firewall Domain profile must be enabled."),
+#     dict(control_type="firewall", field="fw_private_profile", operator="eq", expected="Enabled",
+#          severity="high", description="Firewall Private profile must be enabled."),
+#     dict(control_type="firewall", field="fw_public_profile", operator="eq", expected="Enabled",
+#          severity="high", description="Firewall Public profile must be enabled."),
+#     dict(control_type="firewall", field="fw_default_inbound_action", operator="eq", expected="Block",
+#          severity="high", description="Firewall default inbound action must be 'Block'."),
     # --- BitLocker (golden image: XtsAes256 / On / 100% / FullyEncrypted / encrypted) ---
     dict(control_type="bitlocker", field="bl_is_encrypted", operator="eq", expected=True,
          severity="critical", description="System volume must be encrypted with BitLocker."),
@@ -56,4 +56,11 @@ DEFAULT_RULES: list[dict] = [
          severity="high", description="BitLocker volume status must be 'FullyEncrypted'."),
     dict(control_type="bitlocker", field="bl_encryption_method", operator="eq", expected="XtsAes256",
          severity="medium", description="BitLocker must use the XtsAes256 encryption method."),
+    # --- DLP (golden image: DLP_Agent=Running) ---
+    dict(control_type="dlp", field="dlp_agent_status", operator="eq", expected="Running",
+     severity="critical", description="DLP agent must be running."),
+    dict(control_type="dlp", field="dlp_data_classification", operator="eq", expected="Restricted",
+          severity="high", description="DLP data classification must be set to 'Restricted'."),
+    dict(control_type="dlp", field="dlp_channel", operator="eq", expected="Authorized",
+          severity="medium", description="DLP communication channel must be 'Authorized'."),
 ]

@@ -8,16 +8,11 @@ detail, and dashboard aggregation all iterate this list.
 """
 
 from app.validators.base import ControlValidator
-from app.validators.controls import (
-    AntivirusValidator,
-    BitlockerValidator,
-    EdrValidator,
-    FirewallValidator,
-)
+from app.validators.controls import AntivirusValidator, BitlockerValidator, EdrValidator, DlpValidator
 
 VALIDATORS: list[ControlValidator] = [
     AntivirusValidator(),
     EdrValidator(),
-    FirewallValidator(),
     BitlockerValidator(),
+    DlpValidator(),
 ]

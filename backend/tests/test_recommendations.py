@@ -8,6 +8,7 @@ control→standard reference map and the deterministic offline fallback.
 
 from app.llm import recommendation
 from app.schemas.control import Finding
+from app.services import remediation_service
 
 
 def _f(control_type, field, severity="high"):
@@ -31,3 +32,15 @@ def test_recommendations_empty_is_none():
     text, source = recommendation.generate_recommendations("HOST-1", [])
     assert source == "none"
     assert "compliant" in text.lower()
+
+
+def test_remediation_service_accepts_collection_key(monkeypatch):
+    monkeypatch.setattr(recommendation, "is_ollama_up", lambda: False)
+    text, available = remediation_service.ai_recommendations(
+        "HOST-1",
+        [_f("antivirus", "av_installed", "critical")],
+        collection_key="standards",
+    )
+    assert available is False
+    assert text is not None
+    assert "HOST-1" in text

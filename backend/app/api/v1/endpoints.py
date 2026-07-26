@@ -89,7 +89,7 @@ def endpoint_filters(
         "owners": asset_repo.distinct_owners(db),
         "operating_systems": asset_repo.distinct_os(db),
         "statuses": ["PASS", "WARNING", "FAIL", "NO_DATA"],
-        "controls": ["antivirus", "edr", "firewall", "bitlocker"],
+        "controls": ["antivirus", "edr", "bitlocker"],
     }
 
 

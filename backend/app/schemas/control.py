@@ -75,12 +75,12 @@ class ControlRecord(BaseModel):
     edr_last_checkin_hours: Optional[int] = None
     edr_detection_count: int = 0
 
-    # --- Firewall ---
-    fw_present: bool = False
-    fw_domain_profile: Optional[str] = None
-    fw_private_profile: Optional[str] = None
-    fw_public_profile: Optional[str] = None
-    fw_default_inbound_action: Optional[str] = None
+    # --- DLP ---
+    dlp_present: bool = False
+    dlp_agent_status: Optional[str] = None
+    dlp_data_classification: Optional[str] = None
+    dlp_channel: Optional[str] = None
+    dlp_action_taken: Optional[str] = None
 
     # --- BitLocker ---
     bl_present: bool = False

@@ -37,7 +37,7 @@ from app.schemas.common import CONTROL_LABELS, ControlType
 from app.schemas.recommendation import CisReference
 
 _OP_LABEL = {"eq": "must equal", "gte": "must be at least", "lte": "must be at most"}
-_CONTROL_ORDER = ["antivirus", "edr", "firewall", "bitlocker"]
+_CONTROL_ORDER = ["antivirus", "edr", "bitlocker", "dlp"]
 
 # Parses the heading of a retrieved CIS chunk, e.g.
 #   "CIS Safeguard 10.2 (Devices / Protect): Configure Automatic ... Updates"
@@ -76,10 +76,10 @@ _CIS_CHOOSE_SYSTEM = (
 
 
 _POLICY_LABEL = {
-    "antivirus": "Antivirus control policy (EdrAv-policy.txt)",
-    "edr": "EDR control policy (EdrAv-policy.txt)",
-    "firewall": "Firewall golden-image baseline (Policy-FW-01)",
-    "bitlocker": "BitLocker golden-image baseline",
+    "antivirus": "Antivirus control policy (master-policy.txt)",
+    "edr": "EDR control policy (master-policy.txt)",
+    "firewall": "Firewall golden-image baseline (master-policy.txt)",
+    "bitlocker": "BitLocker golden-image baseline (master-policy.txt)",
 }
 
 
@@ -198,8 +198,8 @@ _POLICY_LINE = re.compile(r"^Policy\s+([A-Z]+-\d+):\s*(.+)$")
 
 
 def _parse_policies() -> list[PolicyDoc]:
-    """Parse the internal AV/EDR policy document into structured entries."""
-    path = Path(settings.POLICIES_ROOT) / "master_policies" / "EdrAv-policy.txt"
+    """Parse the internal master policy document into structured entries."""
+    path = Path(settings.POLICIES_ROOT) / "master_policies" / "master-policy.txt"
     if not path.exists():
         return []
     text = path.read_text(encoding="utf-8", errors="replace")

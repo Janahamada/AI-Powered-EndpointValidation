@@ -31,7 +31,7 @@ Rules:
 - Order recommendations by severity: critical first, then high, medium, low.
 - Keep each recommendation to ONE short sentence plus its citation — be brief.
 - If the provided excerpts don't cover a finding, say so rather than guessing.
-- Where relevant, reference the applicable CIS control.
+- Where relevant, reference the applicable master policy.
 """
 
 EXISTENCE_SYSTEM_PROMPT = """You are a security compliance assistant. You will be \

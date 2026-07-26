@@ -1,5 +1,5 @@
 """
-Control-evidence ORM models: Antivirus, EDR, Firewall, BitLocker.
+Control-evidence ORM models: Antivirus, EDR, DLP, BitLocker.
 
 There is intentionally NO foreign key from these tables to `assets`:
 evidence for a hostname not yet in the inventory is a real finding (drift),
@@ -48,14 +48,14 @@ class EdrControl(Base):
     )
 
 
-class FirewallControl(Base):
-    __tablename__ = "firewall_controls"
+class DlpControl(Base):
+    __tablename__ = "dlp_controls"
 
     hostname: Mapped[str] = mapped_column(String, primary_key=True)
-    domain_profile: Mapped[str | None] = mapped_column(String)  # Enabled/Disabled
-    private_profile: Mapped[str | None] = mapped_column(String)
-    public_profile: Mapped[str | None] = mapped_column(String)
-    default_inbound_action: Mapped[str | None] = mapped_column(String)  # Block/Allow
+    agent_status: Mapped[str | None] = mapped_column(String)
+    data_classification: Mapped[str | None] = mapped_column(String)
+    channel: Mapped[str | None] = mapped_column(String)
+    action_taken: Mapped[str | None] = mapped_column(String)
     loaded_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )

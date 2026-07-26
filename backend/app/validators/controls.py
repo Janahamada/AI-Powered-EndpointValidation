@@ -20,10 +20,9 @@ class EdrValidator(ControlValidator):
     control_type = ControlType.EDR
     presence_field = "edr_present"
 
-
-class FirewallValidator(ControlValidator):
-    control_type = ControlType.FIREWALL
-    presence_field = "fw_present"
+class DlpValidator(ControlValidator):
+    control_type = ControlType.DLP
+    presence_field = "dlp_present"
 
 
 class BitlockerValidator(ControlValidator):

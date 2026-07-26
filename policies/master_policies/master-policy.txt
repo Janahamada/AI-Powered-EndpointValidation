@@ -1,0 +1,118 @@
+Policy EDR-01: Real-Time Protection
+All endpoints classified as in-scope must run EDR agents with real-time 
+protection enabled at all times. Real-time protection must not be 
+disabled for troubleshooting for more than 4 hours without a documented 
+exception approved by the security team.
+  - Telemetry Field Mapped: EDR_Agent_Status, RealTime_Protection
+  - Golden Baseline Target: EDR_Agent_Status == "Running", RealTime_Protection == "Enabled"
+
+Policy EDR-02: Agent Check-In Frequency
+EDR agents must check in with the management console at least once every 
+24 hours. Endpoints that miss two consecutive check-in windows must be 
+flagged for investigation and, if unresponsive, isolated from the network.
+  - Telemetry Field Mapped: Last_CheckIn_Hours
+  - Golden Baseline Target: Last_CheckIn_Hours <= 24
+
+Policy EDR-03: Sensor Health Status
+An EDR sensor reporting an unhealthy status must be investigated within 
+one business day. Unhealthy status typically indicates the sensor is 
+running but not functioning correctly (e.g. driver failure, corrupted 
+configuration) and does not provide the protection assumed by an 
+"installed" status alone.
+  - Telemetry Field Mapped: Sensor_Health_Status
+  - Golden Baseline Target: Sensor_Health_Status == "Healthy"
+
+Policy EDR-04: Sensor Version
+All in-scope endpoints must run an approved EDR sensor version that is 
+within the vendor support lifecycle. Unsupported or outdated sensor 
+versions must be remediated within 5 business days of detection.
+  - Telemetry Field Mapped: EDR_Sensor_Version
+  - Golden Baseline Target: EDR_Sensor_Version contains "Supported"
+
+Policy EDR-05: Sensor Configuration Baseline
+EDR sensors must be deployed with the approved security baseline 
+configuration. Any unauthorized or non-standard deviation that weakens 
+protection, disables telemetry, or prevents proper detection must be 
+investigated and corrected within one business day.
+  - Telemetry Field Mapped: EDR_Baseline_Config
+  - Golden Baseline Target: EDR_Baseline_Config == "Standard-v1"
+
+
+Policy AV-01: Signature Freshness
+Antivirus signature databases must be updated within 7 days of vendor 
+release. Endpoints exceeding this threshold are considered non-compliant 
+and must be remediated within one business day of detection.
+  - Telemetry Field Mapped: AV_Signature_Age_Days
+  - Golden Baseline Target: AV_Signature_Age_Days <= 7
+
+Policy AV-02: Full Scan Cadence
+A full disk scan must be completed on every endpoint at least once every 
+30 days. Endpoints overdue for a scan should have one scheduled during 
+the next available maintenance window.
+  - Telemetry Field Mapped: Last_FullScan_Days
+  - Golden Baseline Target: Last_FullScan_Days <= 30
+
+Policy AV-03: Tamper Protection
+Tamper protection must remain enabled on all endpoints running the 
+managed antivirus agent. Disabling tamper protection outside of an 
+approved maintenance exception is treated as a critical policy violation.
+  - Telemetry Field Mapped: Tamper_Protection
+  - Golden Baseline Target: Tamper_Protection == "Enabled"
+
+Policy AV-04: Agent Version
+All endpoints running the managed antivirus agent must use an approved 
+vendor-supported version. Unsupported, end-of-life, or unapproved 
+versions are considered non-compliant and must be upgraded or remediated 
+within 5 business days of detection.
+  - Telemetry Field Mapped: AV_Agent_Version
+  - Golden Baseline Target: AV_Agent_Version contains "Supported"
+
+Policy AV-05: Agent Policy
+All endpoints running the managed antivirus agent must be configured 
+with the approved standard workstation policy. Any deviation from the 
+standard policy that weakens protection, disables required controls, or 
+prevents enforcement must be investigated and remediated within one 
+business day.
+  - Telemetry Field Mapped: AV_Policy_Profile
+  - Golden Baseline Target: AV_Policy_Profile == "Standard Workstation"
+
+Policy ENC-01: Disk Encryption State & Method
+All enterprise storage volumes on laptops and workstations must be fully 
+encrypted using an approved encryption cipher (e.g., XtsAes256). Volume 
+protection state must remain active at all times.
+  - Telemetry Field Mapped: Encryption_Method, Protection_Status, Volume_Status
+  - Golden Baseline Target: Encryption_Method == "XtsAes256", Protection_Status == "On", Volume_Status == "FullyEncrypted"
+
+Policy ENC-02: Encryption Percentage
+Endpoints must maintain 100% volume encryption across all local physical fixed 
+drives. Any drive reporting incomplete or degraded encryption must be flagged 
+for immediate remediation.
+  - Telemetry Field Mapped: Percentage_Encrypted
+  - Golden Baseline Target: Percentage_Encrypted == 100
+
+Policy ENC-03: Cloud MDM / Intune Compliance Sync
+Disk encryption status reported via cloud management APIs (Microsoft Graph API) 
+must validate that the device is flagged as encrypted and holds a compliant 
+device state in MDM posture evaluations.
+  - Telemetry Field Mapped: isEncrypted, complianceState
+  - Golden Baseline Target: isEncrypted == True, complianceState == "compliant"
+
+
+Policy DLP-01: DLP Endpoint Agent Operational Status
+The host-based DLP monitoring agent must remain active and in a running state on 
+all endpoints storing, processing, or accessing sensitive enterprise data.
+  - Telemetry Field Mapped: DLP_Agent_Status
+  - Golden Baseline Target: DLP_Agent_Status == "Running"
+
+Policy DLP-02: Sensitive Data Exfiltration Control
+Attempts to transfer or copy sensitive data (e.g., Restricted or PII_Sensitive) 
+across high-risk channels (such as USB removable storage or unauthorized cloud destinations) 
+must be automatically enforced with a block action rather than audit-only mode.
+  - Telemetry Field Mapped: Data_Classification, Channel, Action_Taken
+  - Golden Baseline Target: Action_Taken == "Block" (for non-authorized channels) OR "Allow" (for authorized internal routing)
+
+Policy DLP-03: DLP Management Compliance Posture
+Endpoints evaluating endpoint audit logs via Microsoft Purview / Graph API 
+must report an overall compliant health state for data security policies.
+  - Telemetry Field Mapped: complianceState
+  - Golden Baseline Target: complianceState == "compliant"

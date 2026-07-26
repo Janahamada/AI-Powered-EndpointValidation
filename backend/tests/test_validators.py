@@ -6,7 +6,7 @@ import pytest
 
 from app.schemas.control import BlueprintRuleOut, ControlRecord
 from app.schemas.common import ValidationStatus
-from app.services import validation_service
+from app.services import chat_service, validation_service
 from app.validators.controls import AntivirusValidator, BitlockerValidator
 
 
@@ -76,6 +76,19 @@ def test_missing_control_row_is_no_data():
     assert bl.status == ValidationStatus.NO_DATA.value
     assert bl.present is False
     assert bl.score == 0.0
+
+
+def test_existence_field_mapping_uses_installed_flags_for_av_and_edr():
+    rec = _fully_compliant_record()
+    rec.av_present = True
+    rec.av_installed = False
+    rec.edr_present = True
+    rec.edr_sensor_installed = False
+
+    assert chat_service._control_exists_for_existence_check(rec, "antivirus") is False
+    assert chat_service._control_exists_for_existence_check(rec, "edr") is False
+    assert chat_service._control_exists_for_existence_check(rec, "firewall") is True
+    assert chat_service._control_exists_for_existence_check(rec, "bitlocker") is True
 
 
 def test_score_is_fraction_of_passing_fields():

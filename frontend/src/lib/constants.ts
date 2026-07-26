@@ -1,4 +1,4 @@
-import { Shield, ShieldAlert, Flame, Lock } from "lucide-react";
+import { Shield, ShieldAlert, Lock, ScanSearch } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ControlType, Severity, ValidationStatus } from "@/types/api";
 
@@ -60,11 +60,11 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
 export const CONTROL_META: Record<ControlType, { label: string; short: string; icon: LucideIcon }> = {
   antivirus: { label: "Antivirus", short: "AV", icon: Shield },
   edr: { label: "Endpoint Detection & Response", short: "EDR", icon: ShieldAlert },
-  firewall: { label: "Firewall", short: "FW", icon: Flame },
+  dlp: { label: "Data Loss Prevention", short: "DLP", icon: ScanSearch },
   bitlocker: { label: "BitLocker Encryption", short: "BitLocker", icon: Lock },
 };
 
-export const CONTROL_ORDER: ControlType[] = ["antivirus", "edr", "firewall", "bitlocker"];
+export const CONTROL_ORDER: ControlType[] = ["antivirus", "edr", "dlp", "bitlocker"];
 export const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low"];
 
 /** Human labels for the sometimes-cryptic evidence field names. */
@@ -120,11 +120,11 @@ export const EVIDENCE_FIELDS: Record<ControlType, string[]> = {
     "edr_last_checkin_hours",
     "edr_detection_count",
   ],
-  firewall: [
-    "fw_domain_profile",
-    "fw_private_profile",
-    "fw_public_profile",
-    "fw_default_inbound_action",
+  dlp: [
+    "dlp_agent_status",
+    "dlp_data_classification",
+    "dlp_channel",
+    "dlp_action_taken",
   ],
   bitlocker: [
     "bl_is_encrypted",

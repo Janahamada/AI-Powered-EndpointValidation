@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     # EXPLANATION_MODEL  -> chat "why/what" answers (RAG-grounded, quality-first).
     # RECOMMENDATION_MODEL -> RAG-grounded remediation recommendations (the model
     #                         reads retrieved policy/CIS excerpts and writes them).
-    EXPLANATION_MODEL: str = "llama3.1:8b"
-    RECOMMENDATION_MODEL: str = "llama3.1:8b"
+    EXPLANATION_MODEL: str = "smollm2:1.7b"
+    RECOMMENDATION_MODEL: str = "smollm2:1.7b"
     OLLAMA_TIMEOUT: int = 120
     # Master switch: when False the AI layer always uses the deterministic
     # fallback, never attempting an Ollama call. When True it tries Ollama and

@@ -1,7 +1,7 @@
 """
 Control validator base class.
 
-Each validator evaluates ONE control (Antivirus, EDR, Firewall, BitLocker)
+Each validator evaluates ONE control (Antivirus, EDR, DLP, BitLocker)
 for one endpoint against the blueprint rules that belong to that control, and
 returns a `ControlValidation` with a PASS/WARNING/FAIL/NO_DATA status, a
 0..100 score, and the list of findings.

@@ -30,16 +30,22 @@ from app.repositories import asset_repo, blueprint_repo, control_repo
 from app.schemas.chat import ChatResponse, ChatSource, ChatTableRow
 from app.schemas.common import CONTROL_LABELS, ControlType, ValidationStatus
 from app.schemas.control import Finding
-from app.services import compliance_service as cs
-from app.services import validation_service
+from app.services import compliance_service as cs, remediation_service, validation_service
+
+_EXISTENCE_FIELD = {
+    "antivirus": "av_installed",
+    "edr": "edr_sensor_installed",
+    "bitlocker": "bl_present",
+}
+
 
 _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 _CONTROL_KEYWORDS: dict[str, list[str]] = {
     "bitlocker": ["bitlocker", "encrypt", "encryption", "disk encryption", "at rest"],
-    "firewall": ["firewall", "inbound", "profile", "port"],
     "antivirus": ["antivirus", "anti-virus", "malware", "signature", "defender", "tamper", "real-time"],
     "edr": ["edr", "sensor", "endpoint detection", "check-in", "check in", "isolation"],
+    "dlp": ["dlp", "data loss prevention", "data leak prevention", "data exfiltration"],
 }
 
 _LIST_KW = ["which ", "list ", "show me", "show all", "name the", "what endpoints",
@@ -78,6 +84,25 @@ def _detect_control(msg: str) -> str | None:
 def _has(msg: str, kws: list[str]) -> bool:
     m = msg.lower()
     return any(k in m for k in kws)
+
+
+def _control_exists_for_existence_check(record, control_type: str) -> bool:
+    if control_type == "dlp":
+        return getattr(record, "dlp_agent_status", None) == "Running"
+    field = _EXISTENCE_FIELD.get(control_type)
+    if not field:
+        return False
+    return bool(getattr(record, field, None))
+
+
+def _build_recommendations(
+    hostname: str,
+    findings: list[Finding],
+    collection_key: str = "master_policies",
+) -> tuple[str | None, bool]:
+    if not findings:
+        return None, False
+    return remediation_service.ai_recommendations(hostname, findings, collection_key=collection_key)
 
 
 def _engine_source(n: int) -> ChatSource:
@@ -158,28 +183,44 @@ def _handle_endpoint(db: Session, msg: str, ip: str) -> ChatResponse:
     ]
 
     if intent == "existence_check":
-        present = {c.control_type: c.present for c in controls}
-        missing = [c for c in controls if not c.present]
-        present_labels = [c.label for c in controls if c.present]
+        present = {
+            c.control_type: _control_exists_for_existence_check(record, c.control_type)
+            for c in controls
+        }
+        missing = [c for c in controls if not present.get(c.control_type, False)]
+        present_labels = [c.label for c in controls if present.get(c.control_type, False)]
         parts = [
             f"{asset.hostname} ({ip}) is in the inventory, owned by {asset.business_owner}.",
-            "Controls with evidence: " + (", ".join(present_labels) if present_labels else "none") + ".",
+            "Controls installed/present: " + (", ".join(present_labels) if present_labels else "none") + ".",
         ]
         missing_findings = [
-            Finding(control_type=c.control_type, field=f"{c.control_type}_present",
-                    expected=True, actual=False, severity="high",
-                    description=f"{c.label} has no evidence on file for this endpoint.")
+            Finding(
+                control_type=c.control_type,
+                field=_EXISTENCE_FIELD.get(c.control_type, f"{c.control_type}_present"),
+                expected=True,
+                actual=False,
+                severity="high",
+                description=f"{c.label} is not installed or present on this endpoint.",
+            )
             for c in missing
         ]
+        sources.append(ChatSource(kind="standard", label="CIS standards (existence check)"))
+        ai_recommendation_text, ai_recommendation_available = _build_recommendations(
+            asset.hostname,
+            missing_findings,
+            collection_key="standards",
+        )
         parts.append("Missing: " + ", ".join(c.label for c in missing) + "." if missing
-                     else "All four controls are present.")
+                     else "All four controls are installed/present.")
         if missing:
             parts.append("Open the endpoint and click 'Generate AI recommendations' for the AI's remediation guidance from your CIS docs.")
         return ChatResponse(
             status="ok", answer_type="endpoint", use_case="existence_check",
             hostname=asset.hostname, ip=ip, message=" ".join(parts),
             findings=missing_findings, sources=sources,
-            ai_available=is_ollama_up(), data={"controls_present": present},
+            ai_recommendations=ai_recommendation_text,
+            ai_available=ai_recommendation_available,
+            data={"controls_present": present},
         )
 
     findings = validation_service.all_findings(controls)
@@ -195,11 +236,17 @@ def _handle_endpoint(db: Session, msg: str, ip: str) -> ChatResponse:
         parts.append(f"{len(findings)} finding(s) — {crit} critical, {high} high. "
                      "Open the endpoint and click 'Generate AI recommendations' for the AI's "
                      "remediation guidance, written from your policy & CIS documents.")
+    ai_recommendation_text, ai_recommendation_available = _build_recommendations(
+        asset.hostname,
+        findings,
+        collection_key="master_policies",
+    )
     return ChatResponse(
         status="ok", answer_type="endpoint", use_case="compliance_check",
         hostname=asset.hostname, ip=ip, compliant=compliant, message=" ".join(parts),
         findings=findings, sources=sources,
-        ai_available=is_ollama_up(),
+        ai_recommendations=ai_recommendation_text,
+        ai_available=ai_recommendation_available,
         data={"compliance_score": score, "status": status_value},
     )
 

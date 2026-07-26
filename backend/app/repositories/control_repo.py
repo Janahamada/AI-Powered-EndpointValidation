@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db_models import AvControl, BitlockerControl, EdrControl, FirewallControl
+from app.db_models import AvControl, BitlockerControl, DlpControl, EdrControl
 from app.repositories.time_utils import days_since, hours_since, parse_dt
 from app.schemas.control import ControlRecord
 
@@ -51,8 +51,8 @@ def _edr(db: Session, hostname: str) -> EdrControl | None:
     return db.get(EdrControl, hostname)
 
 
-def _fw(db: Session, hostname: str) -> FirewallControl | None:
-    return db.get(FirewallControl, hostname)
+def _dlp(db: Session, hostname: str) -> DlpControl | None:
+    return db.get(DlpControl, hostname)
 
 
 def _bl(db: Session, hostname: str) -> BitlockerControl | None:
@@ -64,11 +64,11 @@ def get_control_record(db: Session, hostname: str) -> ControlRecord:
     represented as not-present with None fields."""
     ref = reference_time(db)
     return _build_record(
-        hostname, _av(db, hostname), _edr(db, hostname), _fw(db, hostname), _bl(db, hostname), ref
+        hostname, _av(db, hostname), _edr(db, hostname), _dlp(db, hostname), _bl(db, hostname), ref
     )
 
 
-def _build_record(hostname, av, edr, fw, bl, ref: datetime | None = None) -> ControlRecord:
+def _build_record(hostname, av, edr, dlp, bl, ref: datetime | None = None) -> ControlRecord:
     return ControlRecord(
         hostname=hostname,
         av_present=av is not None,
@@ -89,11 +89,11 @@ def _build_record(hostname, av, edr, fw, bl, ref: datetime | None = None) -> Con
         edr_policy=edr.policy if edr else None,
         edr_last_checkin_hours=hours_since(parse_dt(edr.last_checkin), ref) if edr else None,
         edr_detection_count=edr.detection_count if edr else 0,
-        fw_present=fw is not None,
-        fw_domain_profile=fw.domain_profile if fw else None,
-        fw_private_profile=fw.private_profile if fw else None,
-        fw_public_profile=fw.public_profile if fw else None,
-        fw_default_inbound_action=fw.default_inbound_action if fw else None,
+        dlp_present=dlp is not None,
+        dlp_agent_status=dlp.agent_status if dlp else None,
+        dlp_data_classification=dlp.data_classification if dlp else None,
+        dlp_channel=dlp.channel if dlp else None,
+        dlp_action_taken=dlp.action_taken if dlp else None,
         bl_present=bl is not None,
         bl_encryption_method=bl.encryption_method if bl else None,
         bl_protection_status=bl.protection_status if bl else None,
@@ -113,14 +113,14 @@ def get_all_control_records(db: Session) -> dict[str, ControlRecord]:
 
     av = {r.hostname: r for r in db.execute(select(AvControl)).scalars().all()}
     edr = {r.hostname: r for r in db.execute(select(EdrControl)).scalars().all()}
-    fw = {r.hostname: r for r in db.execute(select(FirewallControl)).scalars().all()}
+    dlp = {r.hostname: r for r in db.execute(select(DlpControl)).scalars().all()}
     bl = {r.hostname: r for r in db.execute(select(BitlockerControl)).scalars().all()}
     asset_hosts = set(db.execute(select(Asset.hostname)).scalars().all())
     ref = reference_time(db)
 
-    hosts = asset_hosts | av.keys() | edr.keys() | fw.keys() | bl.keys()
+    hosts = asset_hosts | av.keys() | edr.keys() | dlp.keys() | bl.keys()
     return {
-        h: _build_record(h, av.get(h), edr.get(h), fw.get(h), bl.get(h), ref)
+        h: _build_record(h, av.get(h), edr.get(h), dlp.get(h), bl.get(h), ref)
         for h in sorted(hosts)
     }
 
@@ -135,7 +135,7 @@ def all_hostnames(db: Session) -> list[str]:
         (Asset, Asset.hostname),
         (AvControl, AvControl.hostname),
         (EdrControl, EdrControl.hostname),
-        (FirewallControl, FirewallControl.hostname),
+        (DlpControl, DlpControl.hostname),
         (BitlockerControl, BitlockerControl.hostname),
     ):
         hosts.update(db.execute(select(col)).scalars().all())

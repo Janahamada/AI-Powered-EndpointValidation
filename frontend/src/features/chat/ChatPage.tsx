@@ -162,6 +162,25 @@ function ChatBubble({ message }: { message: Message }) {
             {/* Tabular list results */}
             {res.table.length > 0 && <ResultTable rows={res.table} />}
 
+            {/* Findings derived from the endpoint/compliance engine */}
+            {res.findings.length > 0 && (
+              <div className="rounded-md border border-border bg-background/70 p-3 text-sm">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Findings
+                </div>
+                <ul className="space-y-1.5">
+                  {res.findings.slice(0, 6).map((finding, index) => (
+                    <li key={`${finding.control_type}-${index}`} className="flex gap-2">
+                      <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                      <span className="flex-1">
+                        <span className="font-medium">{finding.control_type}</span>: {finding.description}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* AI (RAG) recommendations, when generated */}
             {res.ai_recommendations && (
               <p className="whitespace-pre-wrap rounded-md border border-primary/25 bg-primary/5 p-3 text-sm leading-relaxed">

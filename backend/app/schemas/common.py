@@ -6,7 +6,7 @@ from enum import Enum
 class ControlType(str, Enum):
     ANTIVIRUS = "antivirus"
     EDR = "edr"
-    FIREWALL = "firewall"
+    DLP = "dlp"
     BITLOCKER = "bitlocker"
 
 
@@ -30,6 +30,6 @@ class ValidationStatus(str, Enum):
 CONTROL_LABELS: dict[str, str] = {
     ControlType.ANTIVIRUS: "Antivirus",
     ControlType.EDR: "Endpoint Detection & Response",
-    ControlType.FIREWALL: "Firewall",
+    ControlType.DLP: "Data Loss Prevention",
     ControlType.BITLOCKER: "BitLocker Encryption",
 }

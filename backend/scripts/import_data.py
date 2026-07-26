@@ -1,19 +1,19 @@
 """
-ETL: load the five evidence sources into the database.
+ETL: load the evidence sources into the database.
 
   assets  <- scripts/asset_inventory.xlsx      (CORP-* hostnames)
   av      <- scripts/antivirus_evidence.xlsx   (CORP-* hostnames)
   edr     <- scripts/edr_evidence.xlsx         (CORP-* hostnames)
-  fw      <- firewall_telemetry.csv            (WORKSTATION-NNN -> re-keyed)
+  dlp     <- dlp_telemetry.csv                 (deviceName -> hostname)
   bl      <- bitlocker_telemetry.csv           (WORKSTATION-NNN -> re-keyed)
 
-Firewall & BitLocker telemetry are keyed by generic 'WORKSTATION-NNN' names
-with no shared key to the CORP asset inventory. Per the agreed design we
-POSITIONALLY re-key them: the telemetry rows (sorted by their numeric suffix)
-are mapped onto the CORP asset hostnames (sorted), so every asset unifies all
-four controls under its CORP hostname. Any telemetry rows beyond the number of
-assets are reported as drift and dropped. This is a documented synthetic
-mapping, not a claim that the source systems share identity.
+BitLocker telemetry is keyed by generic 'WORKSTATION-NNN' names with no
+shared key to the CORP asset inventory. Per the agreed design we POSITIONALLY
+re-key them: the telemetry rows (sorted by their numeric suffix) are mapped
+onto the CORP asset hostnames (sorted), so every asset unifies the controls
+under its CORP hostname. Any telemetry rows beyond the number of assets are
+reported as drift and dropped. This is a documented synthetic mapping, not a
+claim that the source systems share identity.
 
     python backend/scripts/import_data.py
 
@@ -32,8 +32,8 @@ from app.db_models import (
     Asset,
     AvControl,
     BitlockerControl,
+    DlpControl,
     EdrControl,
-    FirewallControl,
 )
 
 # Source file locations (repo root).
@@ -41,7 +41,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 ASSETS_XLSX = SCRIPTS_DIR / "asset_inventory.xlsx"
 AV_XLSX = SCRIPTS_DIR / "antivirus_evidence.xlsx"
 EDR_XLSX = SCRIPTS_DIR / "edr_evidence.xlsx"
-FW_CSV = REPO_ROOT / "firewall_telemetry.csv"
+DLP_CSV = REPO_ROOT / "dlp_telemetry.csv"
 BL_CSV = REPO_ROOT / "bitlocker_telemetry.csv"
 
 _BOOL_INSTALLED = {"Installed": 1, "Not Installed": 0}
@@ -147,21 +147,18 @@ def load_edr() -> list[dict]:
     return rows
 
 
-def load_fw_raw() -> list[dict]:
-    df = pd.read_csv(FW_CSV)
-    return sorted(
-        (
-            dict(
-                device=r["Device_Name"],
-                domain_profile=_clean(r.get("Domain")),
-                private_profile=_clean(r.get("Private")),
-                public_profile=_clean(r.get("Public")),
-                default_inbound_action=_clean(r.get("DefaultInboundAction")),
-            )
-            for r in df.to_dict("records")
-        ),
-        key=lambda d: _num(d["device"]),
-    )
+def load_dlp_raw() -> list[dict]:
+    df = pd.read_csv(DLP_CSV)
+    return [
+        dict(
+            hostname=_clean(r.get("deviceName")),
+            agent_status=_clean(r.get("DLP_Agent_Status")),
+            data_classification=_clean(r.get("Data_Classification")),
+            channel=_clean(r.get("Channel")),
+            action_taken=_clean(r.get("Action_Taken")),
+        )
+        for r in df.to_dict("records")
+    ]
 
 
 def load_bl_raw() -> list[dict]:
@@ -219,13 +216,13 @@ def main() -> None:
     assets = load_assets()
     av = load_av()
     edr = load_edr()
-    fw_raw = load_fw_raw()
+    dlp_raw = load_dlp_raw()
     bl_raw = load_bl_raw()
 
     asset_hostnames = sorted(a["hostname"] for a in assets)
     print(
         f"  assets={len(assets)} av={len(av)} edr={len(edr)} "
-        f"firewall={len(fw_raw)} bitlocker={len(bl_raw)}"
+        f"dlp={len(dlp_raw)} bitlocker={len(bl_raw)}"
     )
 
     # Drift: AV/EDR evidence for hostnames not in inventory.
@@ -235,8 +232,7 @@ def main() -> None:
         if orphan:
             print(f"  DRIFT: {len(orphan)} {name} evidence host(s) not in inventory: {orphan}")
 
-    print("Positionally re-keying firewall/bitlocker onto CORP hostnames...")
-    fw = rekey(fw_raw, asset_hostnames, "firewall")
+    print("Positionally re-keying bitlocker onto CORP hostnames...")
     bl = rekey(bl_raw, asset_hostnames, "bitlocker")
 
     print("Loading into database (replacing existing contents)...")
@@ -244,7 +240,7 @@ def main() -> None:
         for model in (
             AvControl,
             EdrControl,
-            FirewallControl,
+            DlpControl,
             BitlockerControl,
             Asset,
         ):
@@ -252,13 +248,13 @@ def main() -> None:
         db.bulk_insert_mappings(Asset.__mapper__, assets)
         db.bulk_insert_mappings(AvControl.__mapper__, av)
         db.bulk_insert_mappings(EdrControl.__mapper__, edr)
-        db.bulk_insert_mappings(FirewallControl.__mapper__, fw)
+        db.bulk_insert_mappings(DlpControl.__mapper__, dlp_raw)
         db.bulk_insert_mappings(BitlockerControl.__mapper__, bl)
         db.commit()
 
     print(
         f"Loaded {len(assets)} assets, {len(av)} AV, {len(edr)} EDR, "
-        f"{len(fw)} firewall, {len(bl)} bitlocker records."
+        f"{len(dlp_raw)} DLP, {len(bl)} bitlocker rows."
     )
 
 

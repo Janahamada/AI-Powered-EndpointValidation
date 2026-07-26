@@ -2,7 +2,7 @@
 
 export type ValidationStatus = "PASS" | "WARNING" | "FAIL" | "NO_DATA";
 export type Severity = "critical" | "high" | "medium" | "low";
-export type ControlType = "antivirus" | "edr" | "firewall" | "bitlocker";
+export type ControlType = "antivirus" | "edr" | "dlp" | "bitlocker";
 
 export interface User {
   id: number;

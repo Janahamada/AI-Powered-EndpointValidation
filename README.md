@@ -132,7 +132,7 @@ npm run dev        # http://localhost:5173  (proxies /api and /health to :8000)
 Open <http://localhost:5173> and sign in with **`admin` / `admin123`**
 (configurable via `DEFAULT_ADMIN_*` in `backend/.env`; change before production).
 
-### 3. (Optional) Enable the AI narrative layer
+### 3. the AI narrative layer
 
 Everything works without this — the app uses a deterministic fallback and shows an
 "LLM offline" badge. To enable grounded LLM prose:

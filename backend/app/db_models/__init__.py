@@ -5,8 +5,8 @@ from app.db_models.blueprint_rule import BlueprintRule
 from app.db_models.control import (
     AvControl,
     BitlockerControl,
+    DlpControl,
     EdrControl,
-    FirewallControl,
 )
 from app.db_models.user import User
 
@@ -14,7 +14,7 @@ __all__ = [
     "Asset",
     "AvControl",
     "EdrControl",
-    "FirewallControl",
+    "DlpControl",
     "BitlockerControl",
     "BlueprintRule",
     "User",

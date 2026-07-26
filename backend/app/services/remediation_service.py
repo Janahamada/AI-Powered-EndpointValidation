@@ -20,7 +20,11 @@ from app.schemas.control import Finding
 _MAX_FINDINGS_FOR_LLM = 6
 
 
-def ai_recommendations(hostname: str, findings: list[Finding]) -> tuple[str | None, bool]:
+def ai_recommendations(
+    hostname: str,
+    findings: list[Finding],
+    collection_key: str | None = None,
+) -> tuple[str | None, bool]:
     """RAG-grounded remediation recommendations. The model reads excerpts
     retrieved from your documents and writes recommendations citing them.
 
@@ -38,7 +42,7 @@ def ai_recommendations(hostname: str, findings: list[Finding]) -> tuple[str | No
     from app.llm.recommendation import generate_recommendations
 
     only_presence_gaps = all(f.field.endswith("_present") for f in findings)
-    collection = "standards" if only_presence_gaps else "master_policies"
+    collection = collection_key or ("standards" if only_presence_gaps else "master_policies")
     capped = sorted(findings, key=lambda f: SEVERITY_ORDER.get(f.severity, 99))[
         :_MAX_FINDINGS_FOR_LLM
     ]
