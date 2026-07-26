@@ -151,8 +151,11 @@ def endpoint_report_pdf(db: Session, hostname: str) -> bytes | None:
     if ev is None:
         return None
     detail = cs.to_detail(ev)
-    recommendations = remediation_service.build_recommendations(ev.findings)
-    recommendations_text = remediation_service.render_text(hostname, recommendations)
+    # AI-generated (RAG) recommendations; falls back to a deterministic summary
+    # of the findings when Ollama is offline.
+    rec_text, _available = remediation_service.ai_recommendations(hostname, ev.findings)
+    recommendations = rec_text
+    recommendations_text = rec_text or ""
     styles = _styles()
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -213,9 +216,9 @@ def endpoint_report_pdf(db: Session, hostname: str) -> bytes | None:
     else:
         story.append(Paragraph("No findings — this endpoint is fully compliant.", styles["Normal"]))
 
-    # Recommendations (deterministic, grounded, cited)
+    # AI recommendations (RAG-generated from your policy/CIS docs)
     if recommendations:
-        story.append(Paragraph("Grounded Recommendations", styles["SectionH"]))
+        story.append(Paragraph("AI Recommendations", styles["SectionH"]))
         for line in recommendations_text.split("\n"):
             story.append(
                 Paragraph(_escape(line) if line.strip() else "&nbsp;", styles["Normal"])

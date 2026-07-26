@@ -5,7 +5,6 @@ from typing import Any, Optional
 from pydantic import BaseModel
 
 from app.schemas.control import Finding
-from app.schemas.recommendation import Recommendation
 
 
 class ChatRequest(BaseModel):
@@ -34,10 +33,9 @@ class ChatResponse(BaseModel):
     hostname: Optional[str] = None
     ip: Optional[str] = None
     compliant: Optional[bool] = None
-    findings: list[Finding] = []
-    recommendations: list[Recommendation] = []  # structured, grounded, cited
+    findings: list[Finding] = []  # what is wrong (deterministic)
+    ai_recommendations: Optional[str] = None  # RAG-generated remediation (how to fix)
     table: list[ChatTableRow] = []  # for list-style answers
     sources: list[ChatSource] = []  # HOW the answer was derived (always populated)
-    ai_summary: Optional[str] = None  # optional LLM narrative
-    ai_available: bool = False  # True only when the LLM narrative answered
+    ai_available: bool = False  # True only when the AI recommendation layer answered
     data: Optional[dict[str, Any]] = None

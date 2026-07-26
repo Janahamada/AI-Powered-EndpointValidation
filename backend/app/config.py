@@ -54,12 +54,12 @@ class Settings(BaseSettings):
     # Explicit IPv4 (not "localhost") so a liveness probe fails fast when
     # Ollama isn't running, instead of waiting on an IPv6 ::1 connect timeout.
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
-    # Hybrid model strategy: a stronger model for reasoning-heavy explanation
-    # answers, and a fast small model for the on-demand executive summary
-    # (which only recaps the already-accurate deterministic findings).
+    # EXPLANATION_MODEL  -> chat "why/what" answers (RAG-grounded, quality-first).
+    # RECOMMENDATION_MODEL -> RAG-grounded remediation recommendations (the model
+    #                         reads retrieved policy/CIS excerpts and writes them).
     EXPLANATION_MODEL: str = "llama3.1:8b"
-    SUMMARY_MODEL: str = "smollm2:1.7b"
-    OLLAMA_TIMEOUT: int = 60
+    RECOMMENDATION_MODEL: str = "llama3.1:8b"
+    OLLAMA_TIMEOUT: int = 120
     # Master switch: when False the AI layer always uses the deterministic
     # fallback, never attempting an Ollama call. When True it tries Ollama and
     # degrades gracefully if it is unreachable.

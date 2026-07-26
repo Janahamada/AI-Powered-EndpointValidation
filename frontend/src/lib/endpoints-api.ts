@@ -64,17 +64,21 @@ export async function sendChat(message: string): Promise<ChatResponse> {
   return data;
 }
 
-export interface EndpointRecommendations {
+export interface EndpointAiRecommendations {
   hostname: string;
-  ai_summary: string | null;
+  ai_recommendations: string | null;
   ai_available: boolean;
 }
 
-/** On-demand LLM narrative summary for an endpoint (may take a few seconds). */
-export async function fetchEndpointAiSummary(hostname: string): Promise<EndpointRecommendations> {
-  const { data } = await api.get<EndpointRecommendations>(
+/** On-demand RAG-grounded recommendations for an endpoint: the model reads
+ *  retrieved policy/CIS excerpts and writes remediation guidance citing them.
+ *  Can take up to ~90s on a large model. */
+export async function fetchEndpointAiRecommendations(
+  hostname: string,
+): Promise<EndpointAiRecommendations> {
+  const { data } = await api.get<EndpointAiRecommendations>(
     `/api/v1/endpoints/${encodeURIComponent(hostname)}/recommendations`,
-    { timeout: 90_000 },
+    { timeout: 130_000 }, // above the backend LLM timeout so it never cuts off early
   );
   return data;
 }

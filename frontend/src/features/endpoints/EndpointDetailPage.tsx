@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ScoreBar } from "@/components/ScoreBar";
 import { ControlCard } from "./ControlCard";
-import { RecommendationCard } from "@/components/RecommendationCard";
 import { useEndpointDetail } from "@/hooks/queries";
 import { apiErrorMessage } from "@/lib/api";
-import { downloadReport, fetchEndpointAiSummary } from "@/lib/endpoints-api";
+import { downloadReport, fetchEndpointAiRecommendations } from "@/lib/endpoints-api";
 
 export function EndpointDetailPage() {
   const { hostname = "" } = useParams();
@@ -20,14 +19,17 @@ export function EndpointDetailPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  async function generateAiSummary() {
+  async function generateAiRecommendations() {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await fetchEndpointAiSummary(hostname);
-      setAiSummary(res.ai_summary ?? "The AI narrative layer is offline; the grounded recommendations below are complete on their own.");
+      const res = await fetchEndpointAiRecommendations(hostname);
+      setAiSummary(
+        res.ai_recommendations ??
+          "The AI layer is offline; the grounded recommendations below are complete on their own.",
+      );
     } catch (err) {
-      setAiError(apiErrorMessage(err, "Could not generate the AI summary."));
+      setAiError(apiErrorMessage(err, "Could not generate the AI recommendations."));
     } finally {
       setAiLoading(false);
     }
@@ -118,34 +120,33 @@ export function EndpointDetailPage() {
             </p>
           ) : (
             <>
-              {/* On-demand AI narrative summary */}
+              {/* On-demand RAG-grounded AI recommendations */}
               <div className="mb-4">
                 {aiSummary ? (
                   <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
                     <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                      AI summary
+                      AI recommendations · retrieved from policy &amp; CIS docs (RAG)
                     </div>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{aiSummary}</p>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading}>
+                    <Button variant="outline" size="sm" onClick={generateAiRecommendations} disabled={aiLoading}>
                       {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                      {aiLoading ? "Generating…" : "Generate AI summary"}
+                      {aiLoading ? "Reading policies…" : "Generate AI recommendations"}
                     </Button>
                     <span className="text-xs text-muted-foreground">
-                      Optional LLM narrative over the grounded findings.
+                      The AI reads your policy &amp; CIS documents and writes recommendations citing them.
                     </span>
                   </div>
                 )}
                 {aiError && <p className="mt-2 text-xs text-fail">{aiError}</p>}
               </div>
 
-              <div className="space-y-3">
-                {data.recommendations.map((rec, i) => (
-                  <RecommendationCard key={`${rec.field}-${i}`} rec={rec} index={i + 1} />
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground">
+                The specific gaps are listed in each control card above; the AI writes the
+                remediation for them from your policy &amp; CIS documents.
+              </p>
             </>
           )}
         </CardContent>

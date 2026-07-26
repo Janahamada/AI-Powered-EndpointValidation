@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/common";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RecommendationCard } from "@/components/RecommendationCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { sendChat } from "@/lib/endpoints-api";
 import { apiErrorMessage } from "@/lib/api";
@@ -163,25 +162,11 @@ function ChatBubble({ message }: { message: Message }) {
             {/* Tabular list results */}
             {res.table.length > 0 && <ResultTable rows={res.table} />}
 
-            {/* AI narrative summary (LLM), when present */}
-            {res.ai_summary && (
-              <p className="whitespace-pre-wrap rounded-md border border-primary/25 bg-primary/5 p-2 text-xs leading-relaxed">
-                <span className="mr-1 font-semibold text-primary">AI summary:</span>
-                {res.ai_summary}
+            {/* AI (RAG) recommendations, when generated */}
+            {res.ai_recommendations && (
+              <p className="whitespace-pre-wrap rounded-md border border-primary/25 bg-primary/5 p-3 text-sm leading-relaxed">
+                {res.ai_recommendations}
               </p>
-            )}
-
-            {/* Grounded recommendations */}
-            {res.recommendations.length > 0 && (
-              <div className="space-y-2 rounded-xl border bg-card/50 p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {res.recommendations.length} grounded recommendation
-                  {res.recommendations.length === 1 ? "" : "s"}
-                </div>
-                {res.recommendations.map((rec, i) => (
-                  <RecommendationCard key={`${rec.field}-${i}`} rec={rec} index={i + 1} />
-                ))}
-              </div>
             )}
 
             {/* Sources — how the answer was derived */}

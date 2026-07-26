@@ -31,7 +31,7 @@ from app.schemas.chat import ChatResponse, ChatSource, ChatTableRow
 from app.schemas.common import CONTROL_LABELS, ControlType, ValidationStatus
 from app.schemas.control import Finding
 from app.services import compliance_service as cs
-from app.services import remediation_service, validation_service
+from app.services import validation_service
 
 _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
@@ -173,11 +173,12 @@ def _handle_endpoint(db: Session, msg: str, ip: str) -> ChatResponse:
         ]
         parts.append("Missing: " + ", ".join(c.label for c in missing) + "." if missing
                      else "All four controls are present.")
-        recs = remediation_service.build_recommendations(missing_findings)
+        if missing:
+            parts.append("Open the endpoint and click 'Generate AI recommendations' for the AI's remediation guidance from your CIS docs.")
         return ChatResponse(
             status="ok", answer_type="endpoint", use_case="existence_check",
             hostname=asset.hostname, ip=ip, message=" ".join(parts),
-            findings=missing_findings, recommendations=recs, sources=sources,
+            findings=missing_findings, sources=sources,
             ai_available=is_ollama_up(), data={"controls_present": present},
         )
 
@@ -191,12 +192,13 @@ def _handle_endpoint(db: Session, msg: str, ip: str) -> ChatResponse:
     else:
         crit = sum(1 for f in findings if f.severity == "critical")
         high = sum(1 for f in findings if f.severity == "high")
-        parts.append(f"{len(findings)} finding(s) — {crit} critical, {high} high. See the grounded recommendations below.")
-    recs = remediation_service.build_recommendations(findings)
+        parts.append(f"{len(findings)} finding(s) — {crit} critical, {high} high. "
+                     "Open the endpoint and click 'Generate AI recommendations' for the AI's "
+                     "remediation guidance, written from your policy & CIS documents.")
     return ChatResponse(
         status="ok", answer_type="endpoint", use_case="compliance_check",
         hostname=asset.hostname, ip=ip, compliant=compliant, message=" ".join(parts),
-        findings=findings, recommendations=recs, sources=sources,
+        findings=findings, sources=sources,
         ai_available=is_ollama_up(),
         data={"compliance_score": score, "status": status_value},
     )
