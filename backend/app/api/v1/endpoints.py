@@ -1,0 +1,138 @@
+"""
+Endpoint routes: paginated/filterable list, full detail, and on-demand
+AI recommendations. All require an authenticated user.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_current_user
+from app.database import get_db
+from app.db_models import User
+from app.llm.ollama_client import is_ollama_up
+from app.repositories import asset_repo
+from app.schemas.endpoint import EndpointDetail, PaginatedEndpoints
+from app.services import compliance_service as cs
+from app.services import remediation_service
+
+router = APIRouter(prefix="/endpoints", tags=["endpoints"])
+
+_SORT_KEYS = {
+    "hostname": lambda s: s.hostname,
+    "score": lambda s: s.compliance_score,
+    "status": lambda s: s.status,
+    "critical": lambda s: s.critical_findings,
+    "findings": lambda s: s.total_findings,
+    "owner": lambda s: s.business_owner,
+}
+
+
+@router.get("", response_model=PaginatedEndpoints)
+def list_endpoints(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+    q: str | None = Query(None, description="Search hostname / IP / owner"),
+    status_filter: str | None = Query(None, alias="status"),
+    control: str | None = Query(None, description="Filter by a control's status, e.g. antivirus=FAIL"),
+    control_status: str | None = Query(None),
+    owner: str | None = None,
+    os: str | None = None,
+    sort: str = Query("hostname"),
+    order: str = Query("asc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+) -> PaginatedEndpoints:
+    evaluated = cs.evaluate_all(db)
+    summaries = [cs.to_summary(ev) for ev in evaluated]
+
+    if q:
+        needle = q.lower()
+        summaries = [
+            s for s in summaries
+            if needle in s.hostname.lower()
+            or needle in s.ip_address.lower()
+            or needle in s.business_owner.lower()
+        ]
+    if status_filter:
+        summaries = [s for s in summaries if s.status == status_filter.upper()]
+    if owner:
+        summaries = [s for s in summaries if s.business_owner == owner]
+    if os:
+        summaries = [s for s in summaries if s.operating_system == os]
+    if control and control_status:
+        summaries = [
+            s for s in summaries
+            if s.control_statuses.get(control) == control_status.upper()
+        ]
+
+    key = _SORT_KEYS.get(sort, _SORT_KEYS["hostname"])
+    summaries.sort(key=key, reverse=(order == "desc"))
+
+    total = len(summaries)
+    start = (page - 1) * page_size
+    items = summaries[start : start + page_size]
+    total_pages = (total + page_size - 1) // page_size if page_size else 1
+
+    return PaginatedEndpoints(
+        items=items, total=total, page=page, page_size=page_size,
+        total_pages=max(total_pages, 1),
+    )
+
+
+@router.get("/filters")
+def endpoint_filters(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    """Distinct filter values for the UI dropdowns."""
+    return {
+        "owners": asset_repo.distinct_owners(db),
+        "operating_systems": asset_repo.distinct_os(db),
+        "statuses": ["PASS", "WARNING", "FAIL", "NO_DATA"],
+        "controls": ["antivirus", "edr", "firewall", "bitlocker"],
+    }
+
+
+@router.get("/{hostname}", response_model=EndpointDetail)
+def endpoint_detail(
+    hostname: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+    with_recommendations: bool = Query(True),
+) -> EndpointDetail:
+    ev = cs.evaluate_one(db, hostname)
+    if ev is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No endpoint '{hostname}' found in inventory or evidence.",
+        )
+    detail = cs.to_detail(ev)
+    if with_recommendations and ev.findings:
+        # Deterministic, cited recommendations are built instantly. The optional
+        # LLM narrative is fetched on demand (GET .../recommendations) so a slow
+        # model never blocks this page load.
+        detail.recommendations = remediation_service.build_recommendations(ev.findings)
+        detail.ai_available = is_ollama_up()
+    return detail
+
+
+@router.get("/{hostname}/recommendations")
+def endpoint_recommendations(
+    hostname: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    ev = cs.evaluate_one(db, hostname)
+    if ev is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No endpoint '{hostname}' found.",
+        )
+    recs = remediation_service.build_recommendations(ev.findings)
+    summary, available = remediation_service.ai_summary(hostname, ev.findings)
+    return {
+        "hostname": hostname,
+        "recommendations": [r.model_dump() for r in recs],
+        "ai_summary": summary,
+        "ai_available": available,
+    }

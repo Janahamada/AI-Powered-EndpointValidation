@@ -1,66 +1,191 @@
-# Endpoint security validation bot
+# AI-Powered Endpoint Assurance Validation
 
-## Structure
+A production-shaped full-stack platform that validates endpoint security controls —
+**Antivirus, EDR, Firewall, and BitLocker** — against a configurable assurance
+blueprint, classifies findings by severity, scores compliance, and explains
+**why** each finding matters and **what to do** about it.
+
+The validation core is **deterministic** (a SQLite lookup + a rules engine — it
+never hallucinates). A local LLM (Ollama) is layered on top purely to phrase the
+explanations; when it isn't running, the app degrades gracefully to a
+deterministic narrative and keeps working end-to-end.
+
 ```
-config.py                # all tunables: DATABASE_URL, models, thresholds
-models.py                # pydantic contracts (Asset, ControlRecord, Finding, etc.)
-sql/sqlite-schema.sql    # DDL: assets / av_controls / edr_controls tables + drift view
-scripts/import_data.py     # ETL: reads our 3 xlsx exports, loads them into the DB 
-                            (should only run once)
-db/database.py              # data access via SQLAlchemy (SQL Server / Postgres / SQLite, same code)
-db/blueprint.py              # compliance blueprint as structured rules
-compliance/comparator.py     # deterministic field diff — NO LLM here
-llm/ollama_client.py          # generic Ollama REST wrapper
-llm/extraction.py              # LLM call 1: free text -> {ip, intent}
-llm/recommendation.py          # LLM call 2: findings + RAG context -> recommendations
-rag/retriever.py               # Chroma store, embeddings via Ollama (nomic-embed-text)
-policies/                        # drop your policy/standard docs here (.txt/.md)
-orchestrator.py                   # routes each request through the right path
-main.py                            # interactive CLI
+React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Pydantic  ──►  SQLite
+                                                   │
+                                                   ├─ deterministic validation engine (4 pluggable control validators)
+                                                   ├─ JWT auth (seeded users)
+                                                   ├─ ReportLab (PDF) + OpenPyXL (Excel) reports
+                                                   └─ Ollama LLM + Chroma RAG (optional, graceful fallback)
 ```
 
-## Setup — you're using SQLite (current)
+---
+
+## Features (6 modules)
+
+| Module | What it does |
+|---|---|
+| **Login** | JWT auth against a seeded `users` table (bcrypt-hashed passwords). |
+| **Dashboard** | Fleet KPIs, compliance trend, findings-by-severity donut, per-control compliance, top findings. |
+| **Endpoints** | Searchable / filterable / sortable / paginated table with per-control status and score. |
+| **Endpoint Detail** | Asset info, four control cards (PASS / WARNING / FAIL / NO_DATA), evidence, findings, AI recommendations, per-endpoint PDF. |
+| **Blueprint** | The assurance baseline made visible — every rule grouped by control, with severity, your policy reference, the CIS safeguard mapping, the firewall/BitLocker golden images, and the internal AV/EDR policies. |
+| **AI Assistant** | Answers **any in-scope question** — per-endpoint checks, fleet metrics ("how many fail BitLocker?"), lists ("which endpoints are failing?"), policy/blueprint lookups, and "what/why" explanations — always grounded in the DB / rules / policies, and **every answer cites its sources**. |
+| **Reports** | Fleet executive-summary PDF and a detailed findings Excel workbook. |
+
+Each control returns **PASS / WARNING / FAIL / NO_DATA**; findings are classified
+**critical / high / medium / low**; endpoints and the fleet get a 0–100 compliance score.
+
+### Named platform components
+- **AI Assurance Agent** — automation & evidence collection (ETL); status surfaced at `/api/v1/system/collection` and the dashboard's *Data Collection* card.
+- **Compliance Engine** — deterministic validation & risk/severity classification (`validators/` + `services/`).
+- **AI Analysis Module** — insights & recommendations: deterministic, cited remediation cards (blueprint + policy + CIS) plus an optional, on-demand LLM narrative.
+- **Interactive Dashboard**, **PDF reports**, **Excel findings export**.
+
+### How the AI stays grounded
+Facts always come from deterministic queries (DB + rules engine); the local LLM
+only *phrases* explanations, strictly over retrieved policy/CIS excerpts. Every
+chat answer carries a `sources` list. The recommendation cards are 100%
+deterministic (never hallucinated); the LLM narrative is an optional summary on
+top, fetched on demand so it never blocks a page load.
+
+---
+
+## Architecture
+
+```
+backend/
+  app/
+    main.py               FastAPI app factory (CORS, logging, routers, /health)
+    config.py             env-driven settings (pydantic-settings)
+    database.py           SQLAlchemy engine + session
+    core/                 security (JWT/bcrypt), auth deps, logging
+    db_models/            ORM: user, asset, av/edr/firewall/bitlocker controls, blueprint_rule
+    schemas/              Pydantic API contracts
+    repositories/         data access (repository pattern) + time normalization
+    validators/           pluggable per-control validators (base + 4 controls + registry)
+    services/             validation, compliance/scoring, AI (Ollama+fallback), reports
+    api/v1/               auth, dashboard, endpoints, chat, reports routers
+    llm/  rag/            Ollama client + Chroma retriever (both optional at runtime)
+  scripts/                init_db, import_data (ETL), seed_blueprint, seed_users
+  tests/                  pytest: validators, scoring, auth, API (22 tests)
+frontend/
+  src/
+    lib/                  axios client (JWT interceptor), typed API, constants, query client
+    store/                auth + theme
+    components/           reusable UI (shadcn-style primitives + StatusBadge, KpiCard, ...)
+    features/             auth, dashboard, endpoints, chat, reports pages
+```
+
+**Design principles:** SOLID / DRY / KISS, clean layering (API → services →
+repositories → ORM), repository pattern, a pluggable validator registry (adding a
+5th control = subclass + register), and a single canonical blueprint baseline
+(`app/services/blueprint_defaults.py`).
+
+### Data model & the positional re-key
+
+Assets, AV, and EDR evidence are keyed by CORP hostnames (`CORP-SRV-###`,
+`CORP-WKSTN-###`). Firewall and BitLocker telemetry arrive keyed by generic
+`WORKSTATION-###` names with no shared key, so the ETL **positionally re-keys**
+them onto the sorted CORP hostnames (documented in `scripts/import_data.py`) so
+every endpoint unifies all four controls under one `hostname`. Drift (evidence
+without inventory, or leftover telemetry) is reported during import.
+
+### Evaluation reference time
+
+The seed dataset is a frozen point-in-time snapshot. Time-based freshness rules
+(EDR check-in ≤ 24h, AV signature age ≤ 7d) are therefore evaluated against the
+dataset's **most recent evidence timestamp** by default, not the wall clock — so
+results stay realistic and stable no matter when you run the demo. Set
+`EVAL_REFERENCE_TIME=now` once live evidence is flowing. See `app/config.py`.
+
+---
+
+## Quick start
+
+### 1. Backend (Python 3.11+)
 
 ```bash
-pip install requests pydantic chromadb sqlalchemy
-ollama pull llama3.1:8b        # used for both extraction and recommendations
-ollama pull nomic-embed-text   # embedding model for RAG
+python -m venv .venv
+# Windows:  .venv\Scripts\activate       Linux/macOS:  source .venv/bin/activate
+pip install -r backend/requirements.txt
 
-python scripts/init_sqlite_db.py    # creates endpoint_security.db from sql/schema_sqlite.sql
-python scripts/import_data.py \
-  --folder . \
-  --db-url "sqlite:///endpoint_security.db"
+cd backend
+python scripts/init_db.py --drop      # create schema from the ORM models
+python scripts/seed_blueprint.py      # 21 blueprint rules across the 4 controls
+python scripts/seed_users.py          # seed the admin account
+python scripts/import_data.py         # ETL: load all evidence (with positional re-key)
 
-python rag/retriever.py         # ingests policies/ into the vector store
-python main.py                  # interactive CLI
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-Re-run `import_data.py` any time you get fresh evidence exports — it replaces table
-contents and prints any inventory/evidence drift it finds.
+API docs: <http://localhost:8000/docs> · Health: <http://localhost:8000/health>
 
-## Moving to SQL Server later
+### 2. Frontend (Node 18+)
 
-1. Create the database and run the schema:
-   ```bash
-   sqlcmd -S <server> -d master -Q "CREATE DATABASE EndpointSecurity"
-   sqlcmd -S <server> -d EndpointSecurity -i sql/schema.sql
-   ```
-2. Install the ODBC driver + `pyodbc` on the machine running this code (Linux example):
-   ```bash
-   curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-   curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-   sudo apt-get update && sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
-   pip install pyodbc
-   ```
-3. Point `config.py`'s `DATABASE_URL` at it and re-run `import_data.py` with `--db-url` set
-   to the same connection string.
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173  (proxies /api and /health to :8000)
+```
 
-## Things to change before production
-- `db/blueprint.py`: replace with your actual signed-off blueprint thresholds.
-- `llm/extraction.py`: add a few real few-shot examples from your own users' phrasing.
-- Add logging across `orchestrator.py` for extracted intent + confidence per request —
-  your main lever for catching misroutes.
-- Consider rejecting `confidence: "low"` extractions and asking the user to confirm
-  before running a DB lookup, rather than proceeding silently.
-- Schedule `scripts/import_data.py` to run on whatever cadence your AV/EDR exports refresh.
+Open <http://localhost:5173> and sign in with **`admin` / `admin123`**
+(configurable via `DEFAULT_ADMIN_*` in `backend/.env`; change before production).
 
+### 3. (Optional) Enable the AI narrative layer
+
+Everything works without this — the app uses a deterministic fallback and shows an
+"LLM offline" badge. To enable grounded LLM prose:
+
+```bash
+ollama pull smollm2:360m       # intent extraction
+ollama pull smollm2:1.7b       # recommendations
+ollama pull nomic-embed-text   # RAG embeddings
+pip install chromadb           # optional: enables policy/CIS RAG retrieval
+python -c "from app.rag.retriever import ingest_policies; \
+  ingest_policies('../policies/standards','standards'); \
+  ingest_policies('../policies/master_policies','master_policies')"
+```
+
+Model names / host are configurable in `backend/.env` (`OLLAMA_HOST`,
+`EXTRACTION_MODEL`, `RECOMMENDATION_MODEL`, `AI_ENABLED`).
+
+---
+
+## Testing
+
+```bash
+cd backend && python -m pytest        # 22 tests: validators, scoring, auth, API
+cd frontend && npm run build          # type-check (tsc) + production build
+```
+
+---
+
+## API surface (`/api/v1`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/auth/login` | OAuth2 password flow → JWT |
+| GET  | `/auth/me` | current user |
+| GET  | `/dashboard/summary` | fleet KPIs & aggregates |
+| GET  | `/endpoints` | list (search / filter / sort / paginate) |
+| GET  | `/endpoints/{hostname}` | full detail + validation + recommendations |
+| GET  | `/endpoints/{hostname}/recommendations` | AI recommendations |
+| POST | `/chat` | grounded NL query engine (endpoint / fleet-metric / list / policy / explanation) with sources |
+| GET  | `/chat/status` | LLM online/offline indicator |
+| GET  | `/endpoints/{hostname}/recommendations` | on-demand LLM narrative summary |
+| GET  | `/blueprint` | the assurance baseline: rules + CIS + policy refs + golden images |
+| GET  | `/system/collection` · `/system/components` | assurance-agent collection status & component health |
+| GET  | `/reports/fleet.pdf` · `/reports/findings.xlsx` · `/reports/endpoint/{hostname}.pdf` | reports |
+
+All data routes require a bearer token.
+
+---
+
+## Configuration
+
+All tunables live in `backend/app/config.py` and can be overridden via
+`backend/.env` (copy from `backend/.env.example`). Key settings: `DATABASE_URL`,
+`SECRET_KEY` (**change in production**), `CORS_ORIGINS`, `AI_ENABLED`,
+`OLLAMA_HOST`, `EVAL_REFERENCE_TIME`. The database is portable — point
+`DATABASE_URL` at PostgreSQL or SQL Server and re-run the scripts.
