@@ -7,8 +7,7 @@ blueprint, classifies findings by severity, scores compliance, and explains
 
 The validation core is **deterministic** (a SQLite lookup + a rules engine — it
 never hallucinates). A local LLM (Ollama) is layered on top purely to phrase the
-explanations; when it isn't running, the app degrades gracefully to a
-deterministic narrative and keeps working end-to-end.
+explanations.
 
 ```
 React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Pydantic  ──►  SQLite
@@ -16,7 +15,7 @@ React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Py
                                                    ├─ deterministic validation engine (4 pluggable control validators)
                                                    ├─ JWT auth (seeded users)
                                                    ├─ ReportLab (PDF) + OpenPyXL (Excel) reports
-                                                   └─ Ollama LLM + Chroma RAG (optional, graceful fallback)
+                                                   └─ Ollama LLM + Chroma RAG 
 ```
 
 ---
@@ -30,7 +29,7 @@ React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Py
 | **Endpoints** | Searchable / filterable / sortable / paginated table with per-control status and score. |
 | **Endpoint Detail** | Asset info, four control cards (PASS / WARNING / FAIL / NO_DATA), evidence, findings, AI recommendations, per-endpoint PDF. |
 | **Blueprint** | The assurance baseline made visible — every rule grouped by control, with severity, your policy reference, the CIS safeguard mapping, the firewall/BitLocker golden images, and the internal AV/EDR policies. |
-| **AI Assistant** | Answers **any in-scope question** — per-endpoint checks, fleet metrics ("how many fail BitLocker?"), lists ("which endpoints are failing?"), policy/blueprint lookups, and "what/why" explanations — always grounded in the DB / rules / policies, and **every answer cites its sources**. |
+| **AI Assistant** | per-endpoint checks, fleet metrics ("how many fail BitLocker?"), lists ("which endpoints are failing?"), policy/blueprint lookups, and "what/why" explanations — always grounded in the DB / rules / policies, and **every answer cites its sources**. |
 | **Reports** | Fleet executive-summary PDF and a detailed findings Excel workbook. |
 
 Each control returns **PASS / WARNING / FAIL / NO_DATA**; findings are classified
@@ -43,12 +42,9 @@ Each control returns **PASS / WARNING / FAIL / NO_DATA**; findings are classifie
 - **Interactive Dashboard**, **PDF reports**, **Excel findings export**.
 
 ### How the AI stays grounded
-Facts always come from deterministic queries (DB + rules engine); the local LLM
-only *phrases* explanations, strictly over retrieved policy/CIS excerpts. Every
-chat answer carries a `sources` list. The recommendation cards are 100%
-deterministic (never hallucinated); the LLM narrative is an optional summary on
-top, fetched on demand so it never blocks a page load.
-
+Facts always come from deterministic queries (DB + rules engine); the local LLM generates
+explanations, strictly over retrieved policy/CIS excerpts. Every
+chat answer carries a `sources` list. 
 ---
 
 ## Architecture
@@ -60,13 +56,13 @@ backend/
     config.py             env-driven settings (pydantic-settings)
     database.py           SQLAlchemy engine + session
     core/                 security (JWT/bcrypt), auth deps, logging
-    db_models/            ORM: user, asset, av/edr/firewall/bitlocker controls, blueprint_rule
+    db_models/            ORM: user, asset, av/edr/firewall/bitlocker controls, blueprint_rule 
     schemas/              Pydantic API contracts
     repositories/         data access (repository pattern) + time normalization
     validators/           pluggable per-control validators (base + 4 controls + registry)
     services/             validation, compliance/scoring, AI (Ollama+fallback), reports
     api/v1/               auth, dashboard, endpoints, chat, reports routers
-    llm/  rag/            Ollama client + Chroma retriever (both optional at runtime)
+    llm/  rag/            Ollama client + Chroma retriever 
   scripts/                init_db, import_data (ETL), seed_blueprint, seed_users
   tests/                  pytest: validators, scoring, auth, API (22 tests)
 frontend/
@@ -85,11 +81,7 @@ repositories → ORM), repository pattern, a pluggable validator registry (addin
 ### Data model & the positional re-key
 
 Assets, AV, and EDR evidence are keyed by CORP hostnames (`CORP-SRV-###`,
-`CORP-WKSTN-###`). Firewall and BitLocker telemetry arrive keyed by generic
-`WORKSTATION-###` names with no shared key, so the ETL **positionally re-keys**
-them onto the sorted CORP hostnames (documented in `scripts/import_data.py`) so
-every endpoint unifies all four controls under one `hostname`. Drift (evidence
-without inventory, or leftover telemetry) is reported during import.
+`CORP-WKSTN-###`). 
 
 ### Evaluation reference time
 
@@ -133,9 +125,6 @@ Open <http://localhost:5173> and sign in with **`admin` / `admin123`**
 (configurable via `DEFAULT_ADMIN_*` in `backend/.env`; change before production).
 
 ### 3. the AI narrative layer
-
-Everything works without this — the app uses a deterministic fallback and shows an
-"LLM offline" badge. To enable grounded LLM prose:
 
 ```bash
 ollama pull smollm2:360m       # intent extraction
