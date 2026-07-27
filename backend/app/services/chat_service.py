@@ -111,8 +111,31 @@ def _engine_source(n: int) -> ChatSource:
         kind="engine",
         label=f"Compliance engine — {n} endpoint(s) evaluated against {rules} blueprint rules",
     )
+    
+import ipaddress
 
 
+def _extract_raw_ip(msg: str) -> str | None:
+    m = _IP_RE.search(msg)
+    return m.group(0) if m else None
+
+
+def _is_valid_ip(ip: str) -> bool:
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
+
+_PARTIAL_IP_RE = re.compile(r"\b\d+(?:\.\d+)+\b")
+def _contains_ip_like_value(msg):
+
+    m = _PARTIAL_IP_RE.search(msg)
+
+    if not m:
+        return None
+
+    return m.group(0)
 # --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
@@ -120,10 +143,38 @@ def answer(db: Session, message: str) -> ChatResponse:
     msg = message.strip()
     if not msg:
         return _clarify("Ask me about an endpoint, a control, the fleet, or a policy.")
+    
+    candidate = _contains_ip_like_value(msg)
+    if candidate:
 
-    ip = _find_ip(msg)
-    if ip:
-        return _handle_endpoint(db, msg, ip)
+        if not _is_valid_ip(candidate):
+
+            return ChatResponse(
+
+                status="invalid_ip",
+
+                answer_type="endpoint",
+
+                message=(
+                    "Invalid IP address. "
+                    "Please enter a valid IPv4 address."
+                ),
+
+            )
+
+    raw_ip = _extract_raw_ip(msg)
+
+    # user entered something that looks like an IP
+    if raw_ip:
+        # invalid IP -> stop immediately
+        if not _is_valid_ip(raw_ip):
+            return ChatResponse(
+                status="invalid_ip",
+                answer_type="endpoint",
+                message="Invalid IP address. Please enter a valid IPv4 address.",
+            )
+        # valid IP
+        return _handle_endpoint(db, msg, raw_ip)
     if _has(msg, _POLICY_KW):
         return _handle_policy(db, msg)
     if _has(msg, _LIST_KW):

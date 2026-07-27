@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     #                         reads retrieved policy/CIS excerpts and writes them).
     EXPLANATION_MODEL: str = "smollm2:1.7b"
     RECOMMENDATION_MODEL: str = "smollm2:1.7b"
+    EXTRACTION_MODEL: str = "smollm2:360m"
     OLLAMA_TIMEOUT: int = 120
     # Master switch: when False the AI layer always uses the deterministic
     # fallback, never attempting an Ollama call. When True it tries Ollama and
