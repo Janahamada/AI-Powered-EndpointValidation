@@ -130,3 +130,47 @@ export async function fetchAuditTrail(limit = 50): Promise<import("@/types/api")
   const { data } = await api.get("/api/v1/audit", { params: { limit } });
   return data;
 }
+
+// --- Finding lifecycle (governance layer; never affects scoring) ----------- //
+export async function fetchFindingStates(
+  hostname: string,
+): Promise<import("@/types/api").FindingState[]> {
+  const { data } = await api.get("/api/v1/findings/states", { params: { hostname } });
+  return data;
+}
+
+export interface FindingStatePayload {
+  hostname: string;
+  control_type: string;
+  field: string;
+  status: import("@/types/api").FindingStatus;
+  justification?: string;
+  owner?: string;
+  expires_at?: string | null;
+}
+
+export async function setFindingState(
+  payload: FindingStatePayload,
+): Promise<import("@/types/api").FindingState> {
+  const { data } = await api.put("/api/v1/findings/state", payload);
+  return data;
+}
+
+export async function clearFindingState(
+  hostname: string,
+  control_type: string,
+  field: string,
+): Promise<void> {
+  await api.delete("/api/v1/findings/state", {
+    params: { hostname, control_type, field },
+  });
+}
+
+export async function fetchEvidenceSources(
+  hostname: string,
+): Promise<import("@/types/api").EvidenceSources> {
+  const { data } = await api.get(
+    `/api/v1/endpoints/${encodeURIComponent(hostname)}/evidence-sources`,
+  );
+  return data;
+}

@@ -9,6 +9,7 @@ from app.db_models.control import (
     DlpControl,
     EdrControl,
 )
+from app.db_models.finding_state import FindingState
 from app.db_models.user import User
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "BlueprintRule",
     "User",
     "AuditEvent",
+    "FindingState",
 ]

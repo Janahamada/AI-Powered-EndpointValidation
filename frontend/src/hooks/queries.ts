@@ -8,6 +8,8 @@ import {
   fetchEndpointDetail,
   fetchEndpointFilters,
   fetchEndpoints,
+  fetchEvidenceSources,
+  fetchFindingStates,
   type EndpointQuery,
 } from "@/lib/endpoints-api";
 
@@ -49,4 +51,21 @@ export function useBlueprint() {
 
 export function useAuditTrail(limit = 25) {
   return useQuery({ queryKey: ["audit-trail", limit], queryFn: () => fetchAuditTrail(limit) });
+}
+
+export function useFindingStates(hostname: string) {
+  return useQuery({
+    queryKey: ["finding-states", hostname],
+    queryFn: () => fetchFindingStates(hostname),
+    enabled: !!hostname,
+  });
+}
+
+export function useEvidenceSources(hostname: string) {
+  return useQuery({
+    queryKey: ["evidence-sources", hostname],
+    queryFn: () => fetchEvidenceSources(hostname),
+    enabled: !!hostname,
+    staleTime: 300_000,
+  });
 }

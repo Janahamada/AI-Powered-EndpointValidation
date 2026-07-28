@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MonitorSmartphone, ShieldCheck, AlertTriangle, ShieldAlert, ArrowRight } from "lucide-react";
+import { MonitorSmartphone, ShieldCheck, AlertTriangle, ShieldAlert, ArrowRight, LayoutGrid } from "lucide-react";
 import { PageHeader, ErrorState, CenteredSpinner } from "@/components/common";
 import { KpiCard } from "@/components/KpiCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { CONTROL_META } from "@/lib/constants";
 import { apiErrorMessage } from "@/lib/api";
 import { useDashboard, useCollectionStatus } from "@/hooks/queries";
 import { SeverityDonut, TrendChart } from "./charts";
+import { ControlHeatMap } from "./ControlHeatMap";
+import { LIVE_CONTROLS, TOTAL_CONTROLS } from "@/features/security-blueprint/blueprint-domains";
 import type { ValidationStatus } from "@/types/api";
 
 const STATUS_TILES: { key: ValidationStatus; label: string }[] = [
@@ -47,6 +49,34 @@ export function DashboardPage() {
         <KpiCard label="Critical Findings" value={data.critical_findings} icon={ShieldAlert} tone="fail" />
         <KpiCard label="High-Risk Findings" value={data.high_risk_findings} icon={AlertTriangle} tone="warning" />
       </div>
+
+      {/* Where the four validated controls sit against the wider blueprint. */}
+      <Link
+        to="/security-blueprint"
+        className="mt-4 flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40"
+      >
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <LayoutGrid className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-semibold">Blueprint coverage</span>
+            <span className="text-sm font-bold text-primary">
+              {((LIVE_CONTROLS / TOTAL_CONTROLS) * 100).toFixed(1)}%
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {LIVE_CONTROLS} of {TOTAL_CONTROLS} enterprise controls validated end-to-end
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-pass"
+              style={{ width: `${(LIVE_CONTROLS / TOTAL_CONTROLS) * 100}%` }}
+            />
+          </div>
+        </div>
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
 
       {/* Charts row */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -181,6 +211,8 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <ControlHeatMap />
     </div>
   );
 }

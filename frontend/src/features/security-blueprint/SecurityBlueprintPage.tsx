@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
+  ArrowRight,
   ChevronDown,
   ClipboardCheck,
+  FlaskConical,
   Layers,
   ListChecks,
   Radar,
@@ -35,18 +38,29 @@ import {
 
 type StatusFilter = "all" | "live" | "roadmap";
 
+/** Stable identity for a catalogue entry, used as the simulation key. */
+const simKey = (slug: string, control: string) => `${slug}::${control}`;
+
 const OUTCOME_ICONS = [Shield, Radar, Zap, RotateCcw];
 const STAGE_ICONS = [ClipboardCheck, Settings2, TrendingUp, ListChecks];
 
-/** Eases a number up from zero on mount — purely cosmetic. */
+/**
+ * Eases a number toward its target — from zero on mount, and from wherever it
+ * currently sits whenever the target changes, so simulating a control makes
+ * the figure climb rather than restart.
+ */
 function useCountUp(target: number, duration = 900) {
   const [value, setValue] = useState(0);
+  const current = useRef(0);
   useEffect(() => {
     let frame = 0;
+    const from = current.current;
     const start = performance.now();
     const tick = (now: number) => {
       const p = Math.min(1, (now - start) / duration);
-      setValue(target * (1 - Math.pow(1 - p, 3)));
+      const next = from + (target - from) * (1 - Math.pow(1 - p, 3));
+      current.current = next;
+      setValue(next);
       if (p < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -63,9 +77,23 @@ export function SecurityBlueprintPage() {
     SECURITY_DOMAINS.filter((d) => d.controls.some((c) => c.validatedBy)).map((d) => d.slug),
   );
   const [activeStage, setActiveStage] = useState(1);
+  // Planned controls the user is "what-if"-ing. Local state only: nothing is
+  // persisted, sent anywhere, or mixed into the real coverage figures.
+  const [simulated, setSimulated] = useState<Set<string>>(new Set());
 
-  const coverage = (LIVE_CONTROLS / TOTAL_CONTROLS) * 100;
+  const baseCoverage = (LIVE_CONTROLS / TOTAL_CONTROLS) * 100;
+  const effectiveLive = LIVE_CONTROLS + simulated.size;
+  const coverage = (effectiveLive / TOTAL_CONTROLS) * 100;
   const animatedCoverage = useCountUp(coverage);
+  const simulating = simulated.size > 0;
+
+  const toggleSimulated = (key: string) =>
+    setSimulated((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,17 +169,25 @@ export function SecurityBlueprintPage() {
         <KpiCard label="Blueprint Controls" value={TOTAL_CONTROLS} icon={ListChecks} />
         <KpiCard
           label="Validated Today"
-          value={LIVE_CONTROLS}
+          value={simulating ? `${LIVE_CONTROLS} + ${simulated.size}` : LIVE_CONTROLS}
           icon={ShieldCheck}
           tone="pass"
-          hint="Evidence collected & rule-checked"
+          hint={
+            simulating
+              ? `${simulated.size} simulated, not yet collected`
+              : "Evidence collected & rule-checked"
+          }
         />
         <KpiCard
-          label="Blueprint Coverage"
+          label={simulating ? "Simulated Coverage" : "Blueprint Coverage"}
           value={`${animatedCoverage.toFixed(1)}%`}
           icon={TrendingUp}
-          tone="warning"
-          hint={`${TOTAL_CONTROLS - LIVE_CONTROLS} controls on the roadmap`}
+          tone={simulating ? "primary" : "warning"}
+          hint={
+            simulating
+              ? `Actual today is ${baseCoverage.toFixed(1)}%`
+              : `${TOTAL_CONTROLS - LIVE_CONTROLS} controls on the roadmap`
+          }
         />
       </div>
 
@@ -160,20 +196,48 @@ export function SecurityBlueprintPage() {
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <span className="text-sm font-medium">Assurance coverage of the blueprint</span>
           <span className="text-xs text-muted-foreground">
-            {LIVE_CONTROLS} live · {TOTAL_CONTROLS - LIVE_CONTROLS} planned
+            {LIVE_CONTROLS} live · {TOTAL_CONTROLS - effectiveLive} planned
+            {simulating && <span className="text-primary"> · {simulated.size} simulated</span>}
           </span>
         </div>
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        {/* Solid = actually validated, striped = simulated. */}
+        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-pass transition-[width] duration-1000 ease-out"
-            style={{ width: `${animatedCoverage}%` }}
+            className="h-full bg-pass transition-[width] duration-1000 ease-out"
+            style={{ width: `${(LIVE_CONTROLS / TOTAL_CONTROLS) * 100}%` }}
+          />
+          <div
+            className="h-full bg-primary/60 transition-[width] duration-500 ease-out"
+            style={{
+              width: `${Math.max(animatedCoverage - (LIVE_CONTROLS / TOTAL_CONTROLS) * 100, 0)}%`,
+              backgroundImage:
+                "repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,.45) 3px, rgba(255,255,255,.45) 6px)",
+            }}
           />
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground/80">What&apos;s next:</span> the platform
-          validates Endpoint and Data Security end-to-end today. Every remaining domain is already
-          mapped here — each one lights up the moment its collector starts sending evidence.
-        </p>
+
+        {simulating ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-xs leading-relaxed">
+              <span className="font-semibold text-primary">Simulating {simulated.size} planned
+              control{simulated.size === 1 ? "" : "s"}.</span>{" "}
+              Coverage would rise from{" "}
+              <span className="font-medium">{baseCoverage.toFixed(1)}%</span> to{" "}
+              <span className="font-semibold text-primary">{coverage.toFixed(1)}%</span>. This is a
+              projection only — no evidence is being collected for these.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setSimulated(new Set())}>
+              <RotateCcw /> Reset
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground/80">What&apos;s next:</span> the platform
+            validates Endpoint and Data Security end-to-end today. Every remaining domain is already
+            mapped here — tick any planned control below to model what adopting it would do to
+            coverage.
+          </p>
+        )}
       </Card>
 
       {/* Toolbar */}
@@ -233,6 +297,8 @@ export function SecurityBlueprintPage() {
               domain={domain}
               expanded={open.includes(domain.slug)}
               onToggle={() => toggle(domain.slug)}
+              simulated={simulated}
+              onSimulate={toggleSimulated}
             />
           ))
         )}
@@ -321,15 +387,21 @@ function DomainCard({
   domain,
   expanded,
   onToggle,
+  simulated,
+  onSimulate,
 }: {
   domain: SecurityDomain;
   expanded: boolean;
   onToggle: () => void;
+  simulated: Set<string>;
+  onSimulate: (key: string) => void;
 }) {
   const accent = ACCENTS[domain.accent];
   const Icon = domain.icon;
   const live = domain.controls.filter((c) => c.validatedBy).length;
-  const pct = Math.round((live / domain.controls.length) * 100);
+  const simCount = domain.controls.filter((c) => simulated.has(simKey(domain.slug, c.name))).length;
+  const pct = Math.round(((live + simCount) / domain.controls.length) * 100);
+  const livePct = Math.round((live / domain.controls.length) * 100);
 
   return (
     <Card className="overflow-hidden">
@@ -353,14 +425,23 @@ function DomainCard({
                 {live} live
               </Badge>
             )}
+            {simCount > 0 && (
+              <Badge className="gap-1 bg-primary/10 text-primary">
+                <FlaskConical className="size-3" />+{simCount} simulated
+              </Badge>
+            )}
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{domain.objective}</p>
         </div>
         <div className="hidden w-28 shrink-0 sm:block">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className={cn("h-full rounded-full transition-all duration-700", accent.bar)}
-              style={{ width: `${Math.max(pct, 2)}%` }}
+              className={cn("h-full transition-all duration-700", accent.bar)}
+              style={{ width: `${Math.max(livePct, live ? 2 : 0)}%` }}
+            />
+            <div
+              className="h-full bg-primary/50 transition-all duration-500"
+              style={{ width: `${Math.max(pct - livePct, 0)}%` }}
             />
           </div>
           <div className="mt-1 text-right text-[10px] text-muted-foreground">
@@ -383,26 +464,59 @@ function DomainCard({
                 <TableHead>Control</TableHead>
                 <TableHead>Assurance status</TableHead>
                 <TableHead>Validated by</TableHead>
+                <TableHead className="text-right">Evidence</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {domain.controls.map((c) => (
-                <TableRow key={c.name}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>
-                    {c.validatedBy ? (
-                      <Badge className="gap-1 bg-pass/10 text-pass">
-                        <ShieldCheck className="size-3" /> Live
-                      </Badge>
-                    ) : (
-                      <Badge variant="muted">Planned</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {c.validatedBy ? CONTROL_META[c.validatedBy].label : "Awaiting collector"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {domain.controls.map((c) => {
+                const key = simKey(domain.slug, c.name);
+                const isSim = simulated.has(key);
+                return (
+                  <TableRow key={c.name}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      {c.validatedBy ? (
+                        <Badge className="gap-1 bg-pass/10 text-pass">
+                          <ShieldCheck className="size-3" /> Live
+                        </Badge>
+                      ) : isSim ? (
+                        <Badge className="gap-1 border-dashed border-primary/40 bg-primary/10 text-primary">
+                          <FlaskConical className="size-3" /> Simulated
+                        </Badge>
+                      ) : (
+                        <Badge variant="muted">Planned</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {c.validatedBy
+                        ? CONTROL_META[c.validatedBy].label
+                        : isSim
+                          ? "Projected — no evidence collected"
+                          : "Awaiting collector"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {c.validatedBy ? (
+                        <Link
+                          to={`/endpoints?control=${c.validatedBy}&control_status=FAIL`}
+                          className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline"
+                        >
+                          Failing endpoints <ArrowRight className="size-3" />
+                        </Link>
+                      ) : (
+                        <label className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={isSim}
+                            onChange={() => onSimulate(key)}
+                            className="size-3.5 cursor-pointer accent-primary"
+                          />
+                          Simulate
+                        </label>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

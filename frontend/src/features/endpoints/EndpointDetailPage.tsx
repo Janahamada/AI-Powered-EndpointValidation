@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ScoreBar } from "@/components/ScoreBar";
 import { ControlCard } from "./ControlCard";
+import { FindingGovernanceCard } from "./FindingGovernanceCard";
 import { useEndpointDetail } from "@/hooks/queries";
 import { apiErrorMessage } from "@/lib/api";
 import { downloadReport, fetchEndpointAiRecommendations } from "@/lib/endpoints-api";
@@ -103,6 +104,13 @@ export function EndpointDetailPage() {
           <ControlCard key={c.control_type} control={c} evidence={data.evidence} />
         ))}
       </div>
+
+      {/* Findings lifecycle + evidence provenance */}
+      <FindingGovernanceCard
+        hostname={hostname}
+        findings={data.findings}
+        evidence={data.evidence}
+      />
 
       {/* Recommendations */}
       <Card className="mt-4">

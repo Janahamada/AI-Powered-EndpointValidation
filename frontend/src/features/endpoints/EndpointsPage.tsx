@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, X } from "lucide-react";
 import { PageHeader, ErrorState, EmptyState, CenteredSpinner } from "@/components/common";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,9 @@ import { ScoreBar } from "@/components/ScoreBar";
 import { ControlStatusDots } from "./ControlStatusDots";
 import { useEndpoints, useEndpointFilters } from "@/hooks/queries";
 import { apiErrorMessage } from "@/lib/api";
+import { CONTROL_META } from "@/lib/constants";
 import type { EndpointQuery } from "@/lib/endpoints-api";
+import type { ControlType } from "@/types/api";
 
 const PAGE_SIZE = 15;
 
@@ -25,6 +27,10 @@ export function EndpointsPage() {
       status: params.get("status") ?? undefined,
       owner: params.get("owner") ?? undefined,
       os: params.get("os") ?? undefined,
+      // Deep-link support: the API filters per-control only when both are set,
+      // e.g. /endpoints?control=bitlocker&control_status=FAIL
+      control: params.get("control") ?? undefined,
+      control_status: params.get("control_status") ?? undefined,
       sort: params.get("sort") ?? "hostname",
       order: (params.get("order") as "asc" | "desc") ?? "asc",
       page: Number(params.get("page") ?? 1),
@@ -92,6 +98,22 @@ export function EndpointsPage() {
             options={(filters?.operating_systems ?? []).map((o) => ({ value: o, label: o }))}
           />
         </div>
+
+        {/* Active per-control filter, arrived at by deep link — shown so it is
+            never invisible state, and clearable in one click. */}
+        {query.control && query.control_status && (
+          <div className="mt-3 flex items-center gap-2 border-t pt-3">
+            <span className="text-xs text-muted-foreground">Filtered by control:</span>
+            <button
+              onClick={() => update({ control: undefined, control_status: undefined })}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              {CONTROL_META[query.control as ControlType]?.short ?? query.control} ={" "}
+              {query.control_status}
+              <X className="size-3" />
+            </button>
+          </div>
+        )}
       </Card>
 
       {isLoading ? (

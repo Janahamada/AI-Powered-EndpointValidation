@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.logging import configure_logging, get_logger
-from app.repositories import audit_repo
+from app.repositories import audit_repo, finding_state_repo
 
 configure_logging()
 logger = get_logger("app")
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     # The audit trail was added after the seed scripts, so make sure its table
     # exists on databases that predate it. Creates only — never drops.
     audit_repo.ensure_table()
+    finding_state_repo.ensure_table()
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 

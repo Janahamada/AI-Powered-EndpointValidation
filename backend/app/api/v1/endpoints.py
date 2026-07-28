@@ -13,7 +13,7 @@ from app.llm.ollama_client import is_ollama_up
 from app.repositories import asset_repo
 from app.schemas.endpoint import EndpointDetail, PaginatedEndpoints
 from app.services import compliance_service as cs
-from app.services import remediation_service
+from app.services import provenance_service, remediation_service
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 
@@ -112,6 +112,17 @@ def endpoint_detail(
     # (GET .../recommendations), so a slow model never blocks this page load.
     detail.ai_available = is_ollama_up() and bool(ev.findings)
     return detail
+
+
+@router.get("/{hostname}/evidence-sources")
+def endpoint_evidence_sources(
+    hostname: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    """Provenance for one endpoint: which file each control's evidence came
+    from and when it was loaded. Read-only; no validation is performed."""
+    return {"hostname": hostname, "sources": provenance_service.evidence_sources(db, hostname)}
 
 
 @router.get("/{hostname}/recommendations")

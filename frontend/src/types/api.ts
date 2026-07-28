@@ -211,3 +211,32 @@ export interface AuditTrail {
   counts_by_action: Record<string, number>;
   events: AuditEvent[];
 }
+
+export type FindingStatus = "in_progress" | "risk_accepted" | "false_positive";
+
+export interface FindingState {
+  hostname: string;
+  control_type: ControlType;
+  field: string;
+  status: FindingStatus;
+  justification: string;
+  owner: string;
+  expires_at: string | null;
+  updated_by: string;
+  updated_at: string;
+  expired: boolean;
+}
+
+export interface EvidenceSource {
+  control_type: string;
+  label: string;
+  source_file: string;
+  loaded_at: string | null;
+  present: boolean;
+  key: string;
+}
+
+export interface EvidenceSources {
+  hostname: string;
+  sources: EvidenceSource[];
+}
