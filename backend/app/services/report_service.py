@@ -16,6 +16,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -25,6 +26,7 @@ from reportlab.platypus import (
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.services import blueprint_domains as bd
 from app.services import compliance_service as cs
 
 # --- Palette -------------------------------------------------------------- #
@@ -137,8 +139,77 @@ def fleet_report_pdf(db: Session) -> bytes:
     find_table.setStyle(_grid_style(severity_col=0))
     story.append(find_table)
 
+    story += _blueprint_appendix(styles)
+
     doc.build(story)
     return buf.getvalue()
+
+
+def _blueprint_appendix(styles) -> list:
+    """Appendix A — where this platform sits against the 10-domain blueprint.
+
+    Reference content only: it reports the catalogue and which entries the
+    engine already validates. It reads no endpoint data and changes no scoring.
+    """
+    story: list = [PageBreak(), Paragraph("Appendix A — Blueprint Coverage", styles["SectionH"])]
+    story.append(
+        Paragraph(
+            f"The enterprise blueprint defines {bd.TOTAL_CONTROLS} controls across "
+            f"{len(bd.SECURITY_DOMAINS)} domains. This platform validates "
+            f"{bd.LIVE_CONTROLS} of them end-to-end today "
+            f"({bd.OVERALL_COVERAGE}% coverage); the remainder are mapped and "
+            "awaiting their evidence collectors.",
+            styles["Sub"],
+        )
+    )
+
+    rows = [["#", "Domain", "Controls", "Validated", "Coverage"]]
+    for d in bd.SECURITY_DOMAINS:
+        rows.append(
+            [
+                str(d.id),
+                d.name,
+                str(len(d.controls)),
+                str(d.live_count),
+                f"{d.coverage}%",
+            ]
+        )
+    rows.append(
+        ["", "TOTAL", str(bd.TOTAL_CONTROLS), str(bd.LIVE_CONTROLS), f"{bd.OVERALL_COVERAGE}%"]
+    )
+    table = Table(rows, colWidths=[10 * mm, 82 * mm, 24 * mm, 26 * mm, 24 * mm])
+    table.setStyle(_grid_style())
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#eef2ff")),
+            ]
+        )
+    )
+    story += [table, Spacer(1, 8)]
+
+    # Which catalogue entries are live, and what validates them.
+    story.append(Paragraph("Controls validated today", styles["SectionH"]))
+    live_rows = [["Domain", "Blueprint control", "Validated by"]]
+    for d in bd.SECURITY_DOMAINS:
+        for c in d.controls:
+            if c.validated_by:
+                live_rows.append(
+                    [d.name, c.name, bd.CONTROL_LABELS.get(c.validated_by, c.validated_by)]
+                )
+    live_table = Table(live_rows, colWidths=[58 * mm, 62 * mm, 46 * mm])
+    live_table.setStyle(_grid_style())
+    story += [live_table, Spacer(1, 8)]
+
+    story.append(Paragraph("For each control the blueprint validates", styles["SectionH"]))
+    stage_rows = [["Validation stage", "Question"]]
+    stage_rows += [[name, question] for name, question in bd.VALIDATION_STAGES]
+    stage_table = Table(stage_rows, colWidths=[56 * mm, 110 * mm])
+    stage_table.setStyle(_grid_style())
+    story.append(stage_table)
+
+    return story
 
 
 # --------------------------------------------------------------------------- #

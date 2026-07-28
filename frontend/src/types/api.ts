@@ -197,3 +197,17 @@ export interface BlueprintView {
   standard_controls: number;
   standard_safeguards: number;
 }
+
+export interface AuditEvent {
+  id: number;
+  occurred_at: string;
+  username: string;
+  action: string;
+  detail: string;
+}
+
+export interface AuditTrail {
+  total: number;
+  counts_by_action: Record<string, number>;
+  events: AuditEvent[];
+}

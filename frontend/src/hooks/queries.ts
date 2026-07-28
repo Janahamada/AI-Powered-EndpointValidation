@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchAiStatus,
+  fetchAuditTrail,
   fetchBlueprint,
   fetchCollectionStatus,
   fetchDashboard,
@@ -44,4 +45,8 @@ export function useCollectionStatus() {
 
 export function useBlueprint() {
   return useQuery({ queryKey: ["blueprint"], queryFn: fetchBlueprint, staleTime: 300_000 });
+}
+
+export function useAuditTrail(limit = 25) {
+  return useQuery({ queryKey: ["audit-trail", limit], queryFn: () => fetchAuditTrail(limit) });
 }

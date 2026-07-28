@@ -1,11 +1,24 @@
 import { useState } from "react";
-import { FileText, FileSpreadsheet, Download, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  FileText,
+  FileSpreadsheet,
+  Download,
+  Loader2,
+  ScrollText,
+  LogIn,
+  ShieldAlert,
+  MessageSquareText,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { PageHeader } from "@/components/common";
-import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, EmptyState } from "@/components/common";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { downloadReport } from "@/lib/endpoints-api";
 import { apiErrorMessage } from "@/lib/api";
+import { useAuditTrail } from "@/hooks/queries";
 
 interface ReportDef {
   key: string;
@@ -37,15 +50,25 @@ const REPORTS: ReportDef[] = [
   },
 ];
 
+const ACTION_META: Record<string, { label: string; icon: LucideIcon; className: string }> = {
+  login: { label: "Login", icon: LogIn, className: "bg-pass/10 text-pass" },
+  login_failed: { label: "Failed login", icon: ShieldAlert, className: "bg-fail/10 text-fail" },
+  report_generated: { label: "Report generated", icon: FileText, className: "bg-primary/10 text-primary" },
+  chat_query: { label: "AI query", icon: MessageSquareText, className: "bg-warning/10 text-warning" },
+};
+
 export function ReportsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   async function handle(def: ReportDef) {
     setBusy(def.key);
     setError(null);
     try {
       await downloadReport(def.path, def.filename);
+      // The download is itself an audited action — refresh the trail below.
+      queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
     } catch (err) {
       setError(apiErrorMessage(err, "Report generation failed."));
     } finally {
@@ -100,6 +123,100 @@ export function ReportsPage() {
       <p className="mt-6 text-sm text-muted-foreground">
         Per-endpoint PDF reports are available from each endpoint's detail page.
       </p>
+
+      <AuditTrailCard />
     </div>
+  );
+}
+
+/**
+ * The DB stamps events with SQLite's UTC `current_timestamp`, which serialises
+ * without a zone marker — JS would otherwise read it as local time. Treat a
+ * zone-less value as UTC before formatting.
+ */
+function formatWhen(iso: string): string {
+  const hasZone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
+  return new Date(hasZone ? iso : `${iso}Z`).toLocaleString();
+}
+
+/** Append-only activity log: who did what, and when. */
+function AuditTrailCard() {
+  const { data, isLoading } = useAuditTrail(25);
+
+  return (
+    <Card className="mt-6">
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <ScrollText className="size-4 text-primary" /> Audit Trail
+          </CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Append-only record of logins, report generation and AI queries. Entries can be read but
+            never edited or deleted.
+          </p>
+        </div>
+        {data && (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {data.total} event{data.total === 1 ? "" : "s"} recorded
+          </span>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="size-5 animate-spin text-primary" />
+          </div>
+        ) : !data || data.events.length === 0 ? (
+          <EmptyState
+            title="No activity recorded yet."
+            hint="Sign in, generate a report or ask the AI assistant a question."
+          />
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {Object.entries(data.counts_by_action).map(([action, n]) => {
+                const meta = ACTION_META[action];
+                return (
+                  <Badge key={action} className={meta?.className ?? ""}>
+                    {meta?.label ?? action}: {n}
+                  </Badge>
+                );
+              })}
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.events.map((e) => {
+                  const meta = ACTION_META[e.action];
+                  const Icon = meta?.icon;
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatWhen(e.occurred_at)}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{e.username}</TableCell>
+                      <TableCell>
+                        <Badge className={meta?.className ?? ""}>
+                          {Icon && <Icon className="size-3" />}
+                          {meta?.label ?? e.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{e.detail}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

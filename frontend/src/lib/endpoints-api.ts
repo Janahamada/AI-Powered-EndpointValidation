@@ -125,3 +125,8 @@ export async function downloadReport(path: string, filename: string): Promise<vo
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export async function fetchAuditTrail(limit = 50): Promise<import("@/types/api").AuditTrail> {
+  const { data } = await api.get("/api/v1/audit", { params: { limit } });
+  return data;
+}

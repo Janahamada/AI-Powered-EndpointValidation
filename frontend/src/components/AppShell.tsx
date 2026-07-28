@@ -6,6 +6,7 @@ import {
   MessageSquareText,
   FileText,
   ClipboardList,
+  LayoutGrid,
   ShieldCheck,
   Moon,
   Sun,
@@ -21,7 +22,8 @@ import { useTheme } from "@/store/theme";
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/endpoints", label: "Endpoints", icon: MonitorSmartphone },
-  { to: "/blueprint", label: "Blueprint", icon: ClipboardList },
+  { to: "/blueprint", label: "Compliance", icon: ClipboardList },
+  { to: "/security-blueprint", label: "Blueprint", icon: LayoutGrid },
   { to: "/chat", label: "AI Assistant", icon: MessageSquareText },
   { to: "/reports", label: "Reports", icon: FileText },
 ];
@@ -106,7 +108,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
           <div className="text-sm font-medium capitalize">
-            {location.pathname.split("/")[1] || "dashboard"}
+            {NAV.find((n) => location.pathname.startsWith(n.to))?.label ??
+              (location.pathname.split("/")[1] || "dashboard")}
           </div>
           <div className="ml-auto flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={toggle} title="Toggle theme">

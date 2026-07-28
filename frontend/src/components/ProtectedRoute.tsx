@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/store/auth";
 import { AppShell } from "@/components/AppShell";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -19,5 +20,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <AppShell>{children}</AppShell>;
+  // Keyed by path so navigating to another page clears a previous crash.
+  return (
+    <AppShell>
+      <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>
+    </AppShell>
+  );
 }

@@ -53,6 +53,10 @@ export function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Compliance Trend</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Projected lead-in — the evidence is a point-in-time snapshot, so earlier weeks are
+              derived from the current score. Only the final point is measured.
+            </p>
           </CardHeader>
           <CardContent>
             <TrendChart data={data.trend} />

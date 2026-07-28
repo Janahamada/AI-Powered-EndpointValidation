@@ -19,7 +19,7 @@ export function BlueprintPage() {
   return (
     <div>
       <PageHeader
-        title="Assurance Blueprint"
+        title="Compliance"
         description="The baseline every endpoint is validated against — rules, golden images, policies and CIS mappings."
       />
 

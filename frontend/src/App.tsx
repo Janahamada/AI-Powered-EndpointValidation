@@ -5,6 +5,7 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { EndpointsPage } from "@/features/endpoints/EndpointsPage";
 import { EndpointDetailPage } from "@/features/endpoints/EndpointDetailPage";
 import { BlueprintPage } from "@/features/blueprint/BlueprintPage";
+import { SecurityBlueprintPage } from "@/features/security-blueprint/SecurityBlueprintPage";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
@@ -43,6 +44,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <BlueprintPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/security-blueprint"
+        element={
+          <ProtectedRoute>
+            <SecurityBlueprintPage />
           </ProtectedRoute>
         }
       />
