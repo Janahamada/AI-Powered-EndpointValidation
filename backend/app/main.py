@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         version="1.0.0",
-        description="AI-Powered Endpoint Assurance Validation API — validates "
+        description="AI Cyber Assurance Platform API — validates "
         "Antivirus, EDR, Firewall and BitLocker controls against an assurance "
         "blueprint and explains findings with grounded recommendations.",
         docs_url="/docs",

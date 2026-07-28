@@ -63,7 +63,7 @@ export function EndpointsPage() {
   return (
     <div>
       <PageHeader
-        title="Endpoints"
+        title="Assets"
         description="Search, filter and drill into every endpoint's four-control validation."
       />
 

@@ -98,7 +98,7 @@ def clear_state(
             db,
             username=current_user.username,
             action="finding_state_changed",
-            detail=f"{hostname} · {control_type}.{field} -> open (decision withdrawn)",
+            detail=f"{hostname} · {control_type}.{field} -> open (recommendation withdrawn)",
         )
     return {"cleared": removed}
 

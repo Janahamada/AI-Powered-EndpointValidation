@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    APP_NAME: str = "AI-Powered Endpoint Assurance Validation"
+    APP_NAME: str = "AI Cyber Assurance Platform"
     API_V1_PREFIX: str = "/api/v1"
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

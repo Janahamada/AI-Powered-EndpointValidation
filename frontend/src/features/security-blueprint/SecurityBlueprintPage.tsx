@@ -121,7 +121,7 @@ export function SecurityBlueprintPage() {
   return (
     <div>
       <PageHeader
-        title="Blueprint"
+        title="Blueprint / Security Posture"
         description="Security controls across key domains ensure the Confidentiality, Integrity and Availability (CIA) of information."
       />
 

@@ -21,9 +21,9 @@ import { useTheme } from "@/store/theme";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/endpoints", label: "Endpoints", icon: MonitorSmartphone },
+  { to: "/endpoints", label: "Assets", icon: MonitorSmartphone },
   { to: "/blueprint", label: "Compliance", icon: ClipboardList },
-  { to: "/security-blueprint", label: "Blueprint", icon: LayoutGrid },
+  { to: "/security-blueprint", label: "Blueprint / Security Posture", icon: LayoutGrid },
   { to: "/chat", label: "AI Assistant", icon: MessageSquareText },
   { to: "/reports", label: "Reports", icon: FileText },
 ];
@@ -41,8 +41,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ShieldCheck className="size-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold">Endpoint Assurance</div>
-          <div className="text-xs text-muted-foreground">Validation Platform</div>
+          <div className="text-sm font-semibold">AI Cyber Assurance</div>
+          <div className="text-xs text-muted-foreground">Platform</div>
         </div>
       </div>
 

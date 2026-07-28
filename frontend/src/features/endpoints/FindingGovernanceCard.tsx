@@ -1,11 +1,11 @@
 /**
- * Findings & decisions — the governance layer over the rules engine.
+ * Findings & recommendations — the governance layer over the rules engine.
  *
  * The engine decides what is *wrong*; this card records what the organisation
  * decided to *do* about it: remediate, tolerate as accepted risk (with a
  * justification and an expiry), or dispute as a false positive.
  *
- * Decisions are deliberately kept out of scoring — a risk acceptance never
+ * Recommendations are deliberately kept out of scoring — a risk acceptance never
  * makes a failing control look like it passes. The card says so on screen.
  *
  * It also carries evidence provenance: for each finding, the source file the
@@ -86,11 +86,11 @@ export function FindingGovernanceCard({
       <CardHeader className="flex-col items-start gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <ShieldQuestion className="size-4 text-primary" /> Findings &amp; Decisions
+            <ShieldQuestion className="size-4 text-primary" /> Findings &amp; Recommendations
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            What was decided about each finding. Decisions are governance records — they never
-            change the compliance score or status.
+            The agreed course of action for each finding. Recommendations are governance records —
+            they never change the compliance score or status.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -166,7 +166,7 @@ function FindingRow({
       onEdit(false);
       invalidate();
     },
-    onError: (e) => setError(apiErrorMessage(e, "Could not save the decision.")),
+    onError: (e) => setError(apiErrorMessage(e, "Could not save the recommendation.")),
   });
 
   const remove = useMutation({
@@ -221,7 +221,7 @@ function FindingRow({
           onClick={() => onEdit(!editing)}
           className="font-medium text-primary hover:underline"
         >
-          {editing ? "Cancel" : state ? "Change decision" : "Record decision"}
+          {editing ? "Cancel" : state ? "Change recommendation" : "Record recommendation"}
         </button>
         {state && (
           <button
@@ -261,9 +261,9 @@ function FindingRow({
         </div>
       )}
 
-      {/* Decision form */}
+      {/* Recommendation form */}
       {editing && (
-        <DecisionForm
+        <RecommendationForm
           hostname={hostname}
           finding={finding}
           existing={state}
@@ -285,7 +285,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   );
 }
 
-function DecisionForm({
+function RecommendationForm({
   hostname,
   finding,
   existing,
@@ -401,7 +401,7 @@ function DecisionForm({
         }
       >
         {pending && <Loader2 className="size-4 animate-spin" />}
-        Save decision
+        Save recommendation
       </Button>
     </div>
   );

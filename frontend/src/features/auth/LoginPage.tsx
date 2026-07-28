@@ -41,7 +41,7 @@ export function LoginPage() {
           <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <ShieldCheck className="size-7" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Endpoint Assurance Validation</h1>
+          <h1 className="text-xl font-semibold tracking-tight">AI Cyber Assurance Platform</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in to the AI-powered assurance console
           </p>
