@@ -28,7 +28,7 @@ const SUGGESTIONS = [
 ];
 
 export function ChatPage() {
-  const { data: aiStatus } = useAiStatus();
+  const { data: aiStatus, refetch: refetchAiStatus } = useAiStatus();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,6 +47,7 @@ export function ChatPage() {
     try {
       const res = await sendChat(trimmed);
       setMessages((m) => [...m, { role: "assistant", text: res.message, response: res }]);
+      await refetchAiStatus();
     } catch (err) {
       setMessages((m) => [
         ...m,
@@ -64,10 +65,10 @@ export function ChatPage() {
         description="Ask about endpoints, the fleet, controls, or policies. Every answer is grounded in this system's data and cites its sources — never invented."
       />
 
-      {aiStatus && !aiStatus.ollama_online && (
+      {aiStatus && !aiStatus.gemini_online && (
         <div className="mb-3 flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
           <WifiOff className="size-4 shrink-0" />
-          LLM narrative layer offline — answers still work from the deterministic engine.
+          {aiStatus.message || "Gemini API is unavailable — the deterministic engine still provides grounded answers."}
         </div>
       )}
 

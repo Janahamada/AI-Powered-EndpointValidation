@@ -20,8 +20,9 @@ reportlab==4.2.5
 
 # --- LLM / RAG (optional at runtime; imports are lazy) ---
 requests==2.32.3
+sentence-transformers==2.4.0
 # chromadb powers the optional policy/CIS RAG retrieval. Only needed if you
-# run the local Ollama AI layer with document grounding; the app runs fine
+# run the Gemini AI layer with document grounding; the app runs fine
 # without it (retrieval degrades to "no context"). Install with:
 #   pip install chromadb
 chromadb==1.5.9

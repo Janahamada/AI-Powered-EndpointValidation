@@ -6,7 +6,7 @@ blueprint, classifies findings by severity, scores compliance, and explains
 **why** each finding matters and **what to do** about it.
 
 The validation core is **deterministic** (a SQLite lookup + a rules engine — it
-never hallucinates). A local LLM (Ollama) is layered on top purely to phrase the
+never hallucinates). An LLM is layered on top purely to phrase the
 explanations.
 
 ```
@@ -15,7 +15,7 @@ React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Py
                                                    ├─ deterministic validation engine (4 pluggable control validators)
                                                    ├─ JWT auth (seeded users)
                                                    ├─ ReportLab (PDF) + OpenPyXL (Excel) reports
-                                                   └─ Ollama LLM + Chroma RAG 
+                                                   └─ LLM + Chroma RAG 
 ```
 
 ---

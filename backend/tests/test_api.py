@@ -75,7 +75,7 @@ def test_chat_compliance_offline_fallback(client, auth_headers):
     assert body["status"] == "ok"
     assert body["use_case"] == "compliance_check"
     assert body["hostname"] == host
-    # No crash regardless of whether Ollama is up.
+    # No crash regardless of whether Gemini is up.
     assert isinstance(body["ai_available"], bool)
 
 

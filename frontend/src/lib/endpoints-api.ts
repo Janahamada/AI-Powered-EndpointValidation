@@ -83,7 +83,7 @@ export async function fetchEndpointAiRecommendations(
   return data;
 }
 
-export async function fetchAiStatus(): Promise<{ ollama_online: boolean; message: string }> {
+export async function fetchAiStatus(): Promise<{ gemini_online: boolean; message: string }> {
   const { data } = await api.get("/api/v1/chat/status");
   return data;
 }

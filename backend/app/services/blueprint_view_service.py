@@ -24,7 +24,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.llm.ollama_client import OllamaUnavailable, call_ollama, is_ollama_up
+from app.llm.gemini_client import GeminiUnavailable, call_gemini, is_gemini_up
 from app.rag.retriever import retrieve_policy_context
 from app.repositories import blueprint_repo
 from app.schemas.blueprint import (
@@ -115,13 +115,13 @@ def _llm_choose(rules, cand_by_field: dict[str, dict]) -> dict[str, str]:
         'e.g. {"av_installed": "10.1"}.'
     )
     try:
-        raw = call_ollama(
-            model=settings.EXPLANATION_MODEL, system=_CIS_CHOOSE_SYSTEM,
+        raw = call_gemini(
+            model=settings.GEMINI_MODEL, system=_CIS_CHOOSE_SYSTEM,
             prompt=prompt, json_mode=True, temperature=0.0, timeout=80,
         )
         parsed = json.loads(raw)
         return {k: str(v) for k, v in parsed.items()} if isinstance(parsed, dict) else {}
-    except (OllamaUnavailable, json.JSONDecodeError, TypeError, ValueError):
+    except (GeminiUnavailable, json.JSONDecodeError, TypeError, ValueError):
         return {}
 
 
@@ -141,7 +141,7 @@ def _ensure_cache(rules) -> None:
     cand_by_field = {r.field: _cis_candidates(r.description) for r in rules}
     chosen = (
         _llm_choose(rules, cand_by_field)
-        if _USE_LLM_REFINEMENT and is_ollama_up()
+        if _USE_LLM_REFINEMENT and is_gemini_up()
         else {}
     )
 

@@ -24,7 +24,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.llm.ollama_client import OllamaUnavailable, call_ollama, is_ollama_up
+from app.llm.gemini_client import GeminiUnavailable, call_gemini, is_gemini_enabled, is_gemini_up
 from app.rag.retriever import retrieve_policy_context
 from app.repositories import asset_repo, blueprint_repo, control_repo
 from app.schemas.chat import ChatResponse, ChatSource, ChatTableRow
@@ -476,17 +476,17 @@ def _handle_explanation(db: Session, msg: str) -> ChatResponse:
                                   label=d["source"]) for d in retrieved])
     excerpts = "\n\n".join(f"[{d['source']}] {d['text']}" for d in retrieved)
 
-    if settings.AI_ENABLED and is_ollama_up():
+    if is_gemini_enabled():
         try:
-            text = call_ollama(
-                model=settings.EXPLANATION_MODEL,
+            text = call_gemini(
+                model=settings.GEMINI_MODEL,
                 system=_EXPLAIN_SYSTEM,
                 prompt=f"Question: {msg}\n\nExcerpts:\n{excerpts}\n\nAnswer:",
                 temperature=0.2,
             )
             return ChatResponse(status="ok", answer_type="explanation", message=text.strip(),
                                 sources=sources, ai_available=True)
-        except OllamaUnavailable:
+        except GeminiUnavailable:
             pass
 
     # Deterministic fallback: present the grounding excerpts directly.

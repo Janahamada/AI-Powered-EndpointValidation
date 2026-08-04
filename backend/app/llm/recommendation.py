@@ -1,72 +1,87 @@
 """
-RAG-grounded remediation recommendations (the original AI behaviour).
+RAG-grounded remediation recommendations.
 
-The model does NOT invent recommendations from general knowledge: it is handed
-excerpts that were semantically retrieved from YOUR own documents, and asked to
-write remediation guidance that cites them. This is the purpose of the RAG
-layer — "look in the policy/standard docs and answer from them."
-
-Two collections, one per use case (as in the original design):
-  - compliance findings  -> RAG over 'master_policies' (your AV/EDR policy)
-  - existence gaps        -> RAG over 'standards' (CIS Controls)
-
-Graceful degradation: if Ollama or Chroma is unavailable, a deterministic
-summary built from the same findings is returned instead (source="fallback"),
-so the feature never errors.
+Gemini generation is used only for text generation. All embeddings are handled
+locally and retrieval is performed over Chroma collections. The model receives
+retrieved policy excerpts and a strict prompt template that ensures explicit
+recommendation output.
 """
 
 from app.config import SEVERITY_ORDER, settings
-from app.llm.ollama_client import OllamaUnavailable, call_ollama, is_ollama_up
+from app.llm.gemini_client import call_gemini, is_gemini_enabled
 from app.rag.retriever import retrieve_policy_context
 from app.schemas.control import Finding
 
 COMPLIANCE_SYSTEM_PROMPT = """You are a security compliance assistant. You will be \
-given a list of control findings for one asset (fields that failed the security \
-blueprint) and relevant excerpts from internal policies and standards. Write \
-clear, actionable remediation recommendations.
+given a list of control findings for one asset and relevant excerpts from internal \
+policy documents. Write remediation recommendations using the exact template \
+provided in the prompt.
 
 Rules:
-- Address every finding provided. Do not invent findings that weren't given to you.
-- For each recommendation, cite which policy excerpt it's grounded in, by source filename.
-- Order recommendations by severity: critical first, then high, medium, low.
-- Keep each recommendation to ONE short sentence plus its citation — be brief.
-- If the provided excerpts don't cover a finding, say so rather than guessing.
-- Where relevant, reference the applicable master policy.
+- Do not invent findings or new policy structure.
+- Do not determine severity; the findings are already grouped by severity.
+- Use the provided policy metadata exactly: Policy, Source, and Text.
+- Write one recommendation per finding, in the template format.
+- If a finding is not covered by the provided excerpts, say so clearly under that finding.
+- Do not add extra sections, summaries, or bullet lists beyond the template.
 """
 
 EXISTENCE_SYSTEM_PROMPT = """You are a security compliance assistant. You will be \
-given a list of security controls that are completely missing (not installed at \
-all) on one asset, and relevant excerpts from the CIS Controls standard. Write \
-clear, actionable recommendations for deploying the missing control(s).
+given a list of missing security controls for one asset and relevant excerpts from \
+the CIS Controls standard. Write remediation recommendations using the exact \
+template provided in the prompt.
 
 Rules:
-- This is about a control's EXISTENCE, not its configuration — the control isn't
-  there at all; the recommendation is to deploy it.
-- Address every missing control provided. Do not invent gaps.
-- Cite which CIS control/safeguard each recommendation is grounded in, by source filename.
-- Be concise and operational.
+- This is about a control's EXISTENCE, not its configuration.
+- Do not invent gaps or new findings.
+- Use the provided policy metadata exactly: Policy, Source, and Text.
+- Write one recommendation per finding, in the template format.
+- If a finding is not covered by the provided excerpts, say so clearly under that finding.
+- Do not add extra sections, summaries, or bullet lists beyond the template.
 """
 
 
-def _findings_block(findings: list[Finding]) -> str:
-    return "\n".join(
-        f"- [{f.severity}] {f.control_type}.{f.field}: "
-        f"expected {f.expected}, actual {f.actual} — {f.description}"
-        for f in findings
-    )
+def _findings_by_severity_block(findings: list[Finding]) -> str:
+    groups: dict[str, list[str]] = {
+        "critical": [],
+        "high": [],
+        "medium": [],
+        "low": [],
+    }
+    for f in findings:
+        severity = f.severity.lower()
+        if severity not in groups:
+            severity = "low"
+        groups[severity].append(f.description)
+
+    lines = []
+    for severity in ("critical", "high", "medium", "low"):
+        if groups[severity]:
+            lines.append(f"{severity.title()} Findings")
+            lines.extend(f"- {desc}" for desc in groups[severity])
+            lines.append("")
+
+    return "\n".join(lines).strip()
 
 
 def _policy_block(retrieved: list[dict]) -> str:
-    return (
-        "\n".join(f"[{d['source']}] {d['text']}" for d in retrieved)
-        or "(no matching excerpts retrieved)"
-    )
+    if not retrieved:
+        return "(no matching excerpts retrieved)"
+
+    blocks = []
+    for d in retrieved:
+        blocks.append(
+            f"Policy: {d.get('policy', 'unknown')}\n"
+            f"Source: {d.get('source', 'unknown')}\n"
+            f"Text:\n{d.get('text', '').strip()}\n"
+            "---------------------"
+        )
+
+    return "\n".join(blocks)
 
 
-def _retrieval_query(findings: list[Finding]) -> str:
-    """Build the semantic query from the findings themselves — the retrievable
-    signal is in the descriptions, not in the raw user prompt."""
-    return " ".join(f"{f.description} (field: {f.field})" for f in findings)
+def _retrieval_query(finding: Finding) -> str:
+    return f"{finding.description} (field: {finding.field})"
 
 
 def _deterministic_fallback(hostname: str, findings: list[Finding]) -> str:
@@ -88,17 +103,15 @@ def generate_recommendations(
     findings: list[Finding],
     collection_key: str = "master_policies",
 ) -> tuple[str, str]:
-    """
-    Returns (recommendation_text, source) where source is "llm" (RAG-grounded
-    model output), "fallback" (deterministic, AI offline), or "none".
-    """
+    print("AI enabled:", is_gemini_enabled())
+    print("Calling Gemini...")
     if not findings:
         return (
             f"{hostname} is compliant with the blueprint. No recommendations needed.",
             "none",
         )
 
-    if not settings.AI_ENABLED or not is_ollama_up():
+    if not is_gemini_enabled():
         return _deterministic_fallback(hostname, findings), "fallback"
 
     system = (
@@ -106,26 +119,51 @@ def generate_recommendations(
         if collection_key == "standards"
         else COMPLIANCE_SYSTEM_PROMPT
     )
-    # 1) RETRIEVE: pull the most relevant excerpts from the chosen doc collection.
-    query = _retrieval_query(findings)
-    retrieved = retrieve_policy_context(query, collection_key=collection_key)
 
-    # 2) GENERATE: the model writes recommendations grounded in those excerpts.
+    retrieved = []
+    seen_texts = set()
+    per_find_top_k = max(settings.RAG_TOP_K, 5)
+    for f in findings:
+        q = _retrieval_query(f)
+        try:
+            pieces = retrieve_policy_context(q, collection_key=collection_key, top_k=per_find_top_k)
+        except Exception:
+            pieces = []
+        for d in pieces:
+            text = d.get("text", "")
+            if text and text not in seen_texts:
+                retrieved.append(d)
+                seen_texts.add(text)
+
     prompt = f"""Findings for asset {hostname}:
-{_findings_block(findings)}
+{_findings_by_severity_block(findings)}
 
 Relevant policy/standard excerpts:
 {_policy_block(retrieved)}
 
-Write the remediation recommendations now."""
+Instruction:
+- For each finding above, write exactly one recommendation.
+- Use the following output format for every finding:
+
+Finding: <finding description>
+Severity: <severity>
+Policy: <policy identifier or standard 'no matching excerpt found'>
+Source: <source filename>
+Recommendation: <one short, actionable sentence. If the excerpt matches, end with the source filename in parentheses.>
+
+Do not add any other sections, summaries, or bullet lists.
+"""
 
     try:
-        text = call_ollama(
-            model=settings.RECOMMENDATION_MODEL,
+        text = call_gemini(
+            model=settings.GEMINI_MODEL,
             system=system,
             prompt=prompt,
             temperature=0.3,
         )
+        print("Gemini succeeded")
         return text.strip(), "llm"
-    except OllamaUnavailable:
-        return _deterministic_fallback(hostname, findings), "fallback"
+    except Exception as e:
+        print("Falling back:", e)
+        print("Gemini exception:", repr(e))
+        raise

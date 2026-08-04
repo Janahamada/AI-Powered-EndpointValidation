@@ -20,7 +20,7 @@ def _f(control_type, field, severity="high"):
 
 def test_recommendations_offline_fallback(monkeypatch):
     # When the LLM is offline, a deterministic summary is returned (no crash).
-    monkeypatch.setattr(recommendation, "is_ollama_up", lambda: False)
+    monkeypatch.setattr(recommendation, "is_gemini_up", lambda: False)
     text, source = recommendation.generate_recommendations(
         "HOST-1", [_f("antivirus", "av_installed", "critical")]
     )
@@ -35,7 +35,7 @@ def test_recommendations_empty_is_none():
 
 
 def test_remediation_service_accepts_collection_key(monkeypatch):
-    monkeypatch.setattr(recommendation, "is_ollama_up", lambda: False)
+    monkeypatch.setattr(recommendation, "is_gemini_up", lambda: False)
     text, available = remediation_service.ai_recommendations(
         "HOST-1",
         [_f("antivirus", "av_installed", "critical")],

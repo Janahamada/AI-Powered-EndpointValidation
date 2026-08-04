@@ -29,7 +29,7 @@ def ai_recommendations(
     retrieved from your documents and writes recommendations citing them.
 
     Returns (recommendation_text, ai_available). Text is always returned when
-    there are findings (LLM output when Ollama is up, else a deterministic
+    there are findings (LLM output when Gemini is up, else a deterministic
     fallback built from the findings); ai_available is True only when it came
     from the model.
 

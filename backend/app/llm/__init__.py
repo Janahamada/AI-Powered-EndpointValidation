@@ -1,1 +1,1 @@
-"""Local-LLM (Ollama) integration. All network calls degrade gracefully."""
+"""Gemini-backed AI integration. All network calls degrade gracefully."""

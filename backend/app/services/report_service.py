@@ -223,7 +223,7 @@ def endpoint_report_pdf(db: Session, hostname: str) -> bytes | None:
         return None
     detail = cs.to_detail(ev)
     # AI-generated (RAG) recommendations; falls back to a deterministic summary
-    # of the findings when Ollama is offline.
+    # of the findings when Gemini is offline.
     rec_text, _available = remediation_service.ai_recommendations(hostname, ev.findings)
     recommendations = rec_text
     recommendations_text = rec_text or ""

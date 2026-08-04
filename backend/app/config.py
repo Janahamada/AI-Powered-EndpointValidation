@@ -50,19 +50,13 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_PASSWORD: str = "admin123"
     DEFAULT_ADMIN_EMAIL: str = "admin@endpointassurance.local"
 
-    # --- Ollama (local LLM) ---
-    # Explicit IPv4 (not "localhost") so a liveness probe fails fast when
-    # Ollama isn't running, instead of waiting on an IPv6 ::1 connect timeout.
-    OLLAMA_HOST: str = "http://127.0.0.1:11434"
-    # EXPLANATION_MODEL  -> chat "why/what" answers (RAG-grounded, quality-first).
-    # RECOMMENDATION_MODEL -> RAG-grounded remediation recommendations (the model
-    #                         reads retrieved policy/CIS excerpts and writes them).
-    EXPLANATION_MODEL: str = "smollm2:1.7b"
-    RECOMMENDATION_MODEL: str = "smollm2:1.7b"
-    EXTRACTION_MODEL: str = "smollm2:360m"
-    OLLAMA_TIMEOUT: int = 120
+    # --- Gemini API ---
+    GEMINI_API_KEY: str = "AIzaSyBqzc7-wA2H2Hu9RdeHE8kQmrnj4vBIcTo"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    GEMINI_TIMEOUT: int = 200
     # Master switch: when False the AI layer always uses the deterministic
-    # fallback, never attempting an Ollama call. When True it tries Ollama and
+    # fallback, never attempting a Gemini call. When True it tries Gemini and
     # degrades gracefully if it is unreachable.
     AI_ENABLED: bool = True
 
@@ -78,8 +72,10 @@ class Settings(BaseSettings):
     # --- RAG ---
     POLICIES_ROOT: str = str(REPO_ROOT / "policies")
     CHROMA_PATH: str = str(REPO_ROOT / "chroma_store")
-    RAG_TOP_K: int = 3
-    EMBEDDING_MODEL: str = "nomic-embed-text"
+    RAG_TOP_K: int = 8
+    # Enable verbose RAG/debug logging to stdout
+    RAG_DEBUG: bool = False
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
 
     @property
     def cors_origins_list(self) -> list[str]:
