@@ -1,0 +1,32 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# --- Data / ORM / validation ---
+SQLAlchemy==2.0.36
+pydantic==2.10.5
+pydantic-settings==2.7.1
+email-validator==2.2.0
+
+# --- Auth ---
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.1
+
+# --- ETL / reports ---
+pandas==2.2.3
+openpyxl==3.1.5
+reportlab==4.2.5
+
+# --- LLM / RAG (optional at runtime; imports are lazy) ---
+requests==2.32.3
+sentence-transformers==2.4.0
+# chromadb powers the optional policy/CIS RAG retrieval. Only needed if you
+# run the Gemini AI layer with document grounding; the app runs fine
+# without it (retrieval degrades to "no context"). Install with:
+#   pip install chromadb
+chromadb==1.5.9
+
+# --- Testing ---
+pytest==8.3.4
+httpx==0.28.1
