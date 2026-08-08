@@ -34,10 +34,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     # --- Database ---
-    # SQLAlchemy connection URL. Defaults to the SQLite file at the repo root.
+    # SQLAlchemy connection URL. Defaults to the SQLite file in the backend root.
     #   SQL Server : mssql+pyodbc://user:pass@server/EndpointSecurity?driver=ODBC+Driver+18+for+SQL+Server
     #   PostgreSQL : postgresql+psycopg2://user:pass@localhost/endpoint_security
-    DATABASE_URL: str = f"sqlite:///{(REPO_ROOT / 'endpoint_security.db').as_posix()}"
+    DATABASE_URL: str = f"sqlite:///{(BACKEND_ROOT / 'data' / 'endpoint_security.db').as_posix()}"
 
     # --- Auth / JWT ---
     # SECRET_KEY MUST be overridden in production via the environment.
@@ -70,8 +70,8 @@ class Settings(BaseSettings):
     EVAL_REFERENCE_TIME: str = ""
 
     # --- RAG ---
-    POLICIES_ROOT: str = str(REPO_ROOT / "policies")
-    CHROMA_PATH: str = str(REPO_ROOT / "chroma_store")
+    POLICIES_ROOT: str = str(BACKEND_ROOT / "policies")
+    CHROMA_PATH: str = str(BACKEND_ROOT / "chroma_store")
     RAG_TOP_K: int = 8
     # Enable verbose RAG/debug logging to stdout
     RAG_DEBUG: bool = False

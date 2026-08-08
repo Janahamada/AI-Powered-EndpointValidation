@@ -22,9 +22,10 @@ const SUGGESTIONS = [
   "What is our overall compliance posture?",
   "How many endpoints are not encrypted with BitLocker?",
   "Which endpoints are failing?",
-  "What does the blueprint require for firewall?",
+  "check asset 10.100.98.1 for compliance",
   "Why does tamper protection matter?",
   "Is 10.100.164.29 compliant and why?",
+  "check asset 10.100.229.140 for existence",
 ];
 
 export function ChatPage() {

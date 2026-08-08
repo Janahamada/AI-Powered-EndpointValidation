@@ -1,2 +1,0 @@
-Asset_ID,Domain,Private,Public,DefaultInboundAction,Compliance_Standard
-GOLDEN-IMAGE-FW,Enabled,Enabled,Enabled,Block,CIS Benchmark v8.0 / Policy-FW-01

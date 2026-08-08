@@ -1,2 +1,0 @@
-Asset_ID,Encryption_Method,Protection_Status,Percentage_Encrypted,Volume_Status,isEncrypted,complianceState
-GOLDEN-IMAGE-ENC,XtsAes256,On,100,FullyEncrypted,True,compliant
