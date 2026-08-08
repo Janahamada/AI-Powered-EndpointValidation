@@ -13,13 +13,11 @@ explanations.
 React + Vite + TypeScript + Tailwind (SPA)  ──►  FastAPI + SQLAlchemy + Pydantic  ──►  SQLite
                                                    │
                                                    ├─ deterministic validation engine (4 pluggable control validators)
-                                                   ├─ JWT auth (seeded users)
                                                    ├─ ReportLab (PDF) + OpenPyXL (Excel) reports
                                                    └─ LLM + Chroma RAG 
 ```
 
 ---
-
 ## Features (6 modules)
 
 | Module | What it does |
@@ -37,16 +35,11 @@ Each control returns **PASS / WARNING / FAIL / NO_DATA**; findings are classifie
 
 ### Named platform components
 - **AI Assurance Agent** — automation & evidence collection (ETL); status surfaced at `/api/v1/system/collection` and the dashboard's *Data Collection* card.
-- **Compliance Engine** — deterministic validation & risk/severity classification (`validators/` + `services/`).
-- **AI Analysis Module** — insights & recommendations: deterministic, cited remediation cards (blueprint + policy + CIS) plus an optional, on-demand LLM narrative.
-- **Interactive Dashboard**, **PDF reports**, **Excel findings export**.
-
 ### How the AI stays grounded
 Facts always come from deterministic queries (DB + rules engine); the local LLM generates
 explanations, strictly over retrieved policy/CIS excerpts. Every
 chat answer carries a `sources` list. 
 ---
-
 ## Architecture
 
 ```
@@ -60,9 +53,15 @@ backend/
     schemas/              Pydantic API contracts
     repositories/         data access (repository pattern) + time normalization
     validators/           pluggable per-control validators (base + 4 controls + registry)
-    services/             validation, compliance/scoring, AI (Ollama+fallback), reports
+    services/             validation, compliance/scoring, AI, reports
     api/v1/               auth, dashboard, endpoints, chat, reports routers
-    llm/  rag/            Ollama client + Chroma retriever 
+    llm/  rag/            AI client + Chroma retriever 
+  data/
+    endpoint_security.db  SQLite database used by the default configuration
+  chroma_store/           Persistent ChromaDB data
+  policies/
+    master_policies/      Internal policy documents
+    standards/            CIS and other standard documents
   scripts/                init_db, import_data (ETL), seed_blueprint, seed_users
   tests/                  pytest: validators, scoring, auth, API (22 tests)
 frontend/
@@ -92,7 +91,6 @@ results stay realistic and stable no matter when you run the demo. Set
 `EVAL_REFERENCE_TIME=now` once live evidence is flowing. See `app/config.py`.
 
 ---
-
 ## Quick start
 
 ### 1. Backend (Python 3.11+)
@@ -124,7 +122,7 @@ npm run dev        # http://localhost:5173  (proxies /api and /health to :8000)
 Open <http://localhost:5173> and sign in with **`admin` / `admin123`**
 (configurable via `DEFAULT_ADMIN_*` in `backend/.env`; change before production).
 
-### 3. the AI narrative layer
+### 3. the AI narrative layer (currently not needed since we now use gemini API not local)
 
 ```bash
 ollama pull smollm2:360m       # intent extraction
@@ -132,15 +130,14 @@ ollama pull smollm2:1.7b       # recommendations
 ollama pull nomic-embed-text   # RAG embeddings
 pip install chromadb           # optional: enables policy/CIS RAG retrieval
 python -c "from app.rag.retriever import ingest_policies; \
-  ingest_policies('../policies/standards','standards'); \
-  ingest_policies('../policies/master_policies','master_policies')"
+  ingest_policies('policies/standards','standards'); \
+  ingest_policies('policies/master_policies','master_policies')"
 ```
 
 Model names / host are configurable in `backend/.env` (`OLLAMA_HOST`,
 `EXTRACTION_MODEL`, `RECOMMENDATION_MODEL`, `AI_ENABLED`).
 
 ---
-
 ## Testing
 
 ```bash
@@ -149,7 +146,6 @@ cd frontend && npm run build          # type-check (tsc) + production build
 ```
 
 ---
-
 ## API surface (`/api/v1`)
 
 | Method | Path | Purpose |
@@ -170,11 +166,13 @@ cd frontend && npm run build          # type-check (tsc) + production build
 All data routes require a bearer token.
 
 ---
-
 ## Configuration
 
 All tunables live in `backend/app/config.py` and can be overridden via
 `backend/.env` (copy from `backend/.env.example`). Key settings: `DATABASE_URL`,
 `SECRET_KEY` (**change in production**), `CORS_ORIGINS`, `AI_ENABLED`,
-`OLLAMA_HOST`, `EVAL_REFERENCE_TIME`. The database is portable — point
+`OLLAMA_HOST`, `EVAL_REFERENCE_TIME`, `POLICIES_ROOT`, and `CHROMA_PATH`.
+By default, the SQLite database is stored at `backend/data/endpoint_security.db`,
+policy documents at `backend/policies/`, and the persistent ChromaDB store at
+`backend/chroma_store/`. The database is portable — point
 `DATABASE_URL` at PostgreSQL or SQL Server and re-run the scripts.
